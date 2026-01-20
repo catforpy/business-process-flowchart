@@ -210,11 +210,14 @@
                     console.log('Gs found:', gs.length);
                     gs.forEach(g => {
                         const text = g.textContent.trim();
-                        if (text === 'HTTP' || text === 'WebSocket') {
+                        if (text === 'HTTP' || text === 'WebSocket' || text === '前端App/Web') {
                             console.log('G with exact match:', text);
                             g.style.cursor = 'pointer';
                             g.addEventListener('click', function() {
-                                const type = text === 'HTTP' ? 'HTTP' : 'WebSocket';
+                                let type;
+                                if (text === 'HTTP') type = 'HTTP';
+                                else if (text === 'WebSocket') type = 'WebSocket';
+                                else if (text === '前端App/Web') type = 'frontend';
                                 console.log('Clicked G:', type);
                                 toggleTooltip(this, type);
                             });
@@ -279,6 +282,19 @@
                     <p><strong>案例：</strong>聊天、实时通知、游戏。</p>
                     <p><strong>优势：</strong>实时性强。</p>
                     <p><strong>劣势：</strong>实现复杂。</p>
+                `;
+            } else if (type === 'frontend') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>前端App/Web准备数据说明</h4>
+                    <p><strong>基础校验数据：</strong></p>
+                    <ul>
+                        <li><strong>Token：</strong>根据用户ID生成，具有唯一性，用于身份验证。</li>
+                        <li><strong>Token位置：</strong>通常放在HTTP请求头（Header）中，如Authorization: Bearer <token>。不建议放在请求体（Data）中，以避免暴露。</li>
+                        <li><strong>其他必传数据：</strong>用户ID（用于关联）、时间戳（防止重放攻击）、请求签名（可选，用于额外安全）。</li>
+                    </ul>
+                    <p><strong>业务数据：</strong>根据具体操作上传，如表单数据、文件等（标识化处理）。</p>
+                    <p><strong>注意：</strong>确保数据格式正确，敏感信息加密传输。</p>
                 `;
             }
             tooltip.innerHTML = content;
