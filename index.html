@@ -40,9 +40,23 @@
             background-color: #f8f9fa;
             border-left: 4px solid #007bff;
         }
-        #flowchart {
-            text-align: center;
-            margin: 20px 0;
+        .tooltip {
+            position: absolute;
+            background-color: #f8f9fa;
+            border: 1px solid #007bff;
+            border-radius: 5px;
+            padding: 10px;
+            max-width: 300px;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .tooltip .close-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            color: #007bff;
         }
         button {
             padding: 10px 20px;
@@ -180,16 +194,127 @@
     <script>
         mermaid.initialize({ startOnLoad: true });
 
-        function toggleDetails(id) {
-            const element = document.getElementById(id);
-            element.style.display = element.style.display === 'block' ? 'none' : 'block';
+        window.addEventListener('load', function() {
+            console.log('Window loaded');
+            // 等待Mermaid渲染完成
+            setTimeout(function() {
+                console.log('Timeout triggered');
+                const svg = document.querySelector('.mermaid svg');
+                console.log('SVG found:', svg);
+                if (svg) {
+                    const texts = svg.querySelectorAll('text');
+                    const tspans = svg.querySelectorAll('tspan');
+                    const gs = svg.querySelectorAll('g');
+                    console.log('Texts found:', texts.length);
+                    console.log('Tspans found:', tspans.length);
+                    console.log('Gs found:', gs.length);
+                    gs.forEach(g => {
+                        const text = g.textContent.trim();
+                        if (text === 'HTTP' || text === 'WebSocket') {
+                            console.log('G with exact match:', text);
+                            g.style.cursor = 'pointer';
+                            g.addEventListener('click', function() {
+                                const type = text === 'HTTP' ? 'HTTP' : 'WebSocket';
+                                console.log('Clicked G:', type);
+                                toggleTooltip(this, type);
+                            });
+                        }
+                    });
+                    [...texts, ...tspans].forEach(text => {
+                        const content = text.textContent.trim();
+                        console.log('Text/Tspan content:', content);
+                        if (content.includes('HTTP') || content.includes('WebSocket')) {
+                            console.log('Match found for:', content);
+                            text.style.cursor = 'pointer';
+                            text.style.fill = '#007bff'; // 蓝色表示可点击
+                            text.addEventListener('click', function() {
+                                const type = content.includes('HTTP') ? 'HTTP' : 'WebSocket';
+                                console.log('Clicked:', type);
+                                toggleTooltip(this, type);
+                            });
+                        }
+                    });
+                }
+            }, 2000); // 增加延迟到2秒
+        });
+
+        let currentTooltip = null;
+        let currentTarget = null;
+
+        function toggleTooltip(target, type) {
+            if (currentTooltip && currentTarget === target) {
+                // 隐藏
+                document.body.removeChild(currentTooltip);
+                currentTooltip = null;
+                currentTarget = null;
+                return;
+            }
+
+            // 隐藏之前的
+            if (currentTooltip) {
+                document.body.removeChild(currentTooltip);
+            }
+
+            // 创建新的
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+
+            let content = '';
+            if (type === 'HTTP') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>HTTP连接说明</h4>
+                    <p><strong>定义：</strong>超文本传输协议，用于客户端和服务器之间的请求-响应通信。</p>
+                    <p><strong>特点：</strong>无状态、简单、易扩展。</p>
+                    <p><strong>案例：</strong>用户登录、提交表单、API调用。</p>
+                    <p><strong>优势：</strong>广泛支持，易缓存。</p>
+                    <p><strong>劣势：</strong>不适合实时通信。</p>
+                `;
+            } else if (type === 'WebSocket') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>WebSocket连接说明</h4>
+                    <p><strong>定义：</strong>全双工通信协议，允许服务器推送数据。</p>
+                    <p><strong>特点：</strong>持久连接、低延迟、双向。</p>
+                    <p><strong>案例：</strong>聊天、实时通知、游戏。</p>
+                    <p><strong>优势：</strong>实时性强。</p>
+                    <p><strong>劣势：</strong>实现复杂。</p>
+                `;
+            }
+            tooltip.innerHTML = content;
+
+            document.body.appendChild(tooltip);
+
+            // 定位到旁边
+            const rect = target.getBoundingClientRect();
+            const tooltipWidth = 300;
+            const tooltipHeight = 200; // 估算
+            let left, top = rect.top + window.scrollY;
+
+            if (type === 'WebSocket') {
+                left = rect.left + window.scrollX - tooltipWidth - 10;
+            } else { // HTTP
+                left = rect.right + window.scrollX + 10;
+            }
+
+            // 确保不超出视窗
+            if (left < 0) left = 10;
+            if (left + tooltipWidth > window.innerWidth) left = window.innerWidth - tooltipWidth - 10;
+            if (top + tooltipHeight > window.innerHeight + window.scrollY) top = rect.top + window.scrollY - tooltipHeight - 10;
+
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+
+            currentTooltip = tooltip;
+            currentTarget = target;
         }
 
-        function toggleAllDetails() {
-            const details = document.querySelectorAll('.details');
-            details.forEach(detail => {
-                detail.style.display = detail.style.display === 'block' ? 'none' : 'block';
-            });
+        function closeTooltip() {
+            if (currentTooltip) {
+                document.body.removeChild(currentTooltip);
+                currentTooltip = null;
+                currentTarget = null;
+            }
         }
     </script>
 </body>
