@@ -90,27 +90,39 @@
                 B -->|HTTP| C[Nginx网关]
                 B -->|WebSocket| C
                 C --> D[分发到后端服务]
-                D --> E[用户中台模块: 认证校验]
-                E --> F[业务模块: 操作处理]
-                F --> G{读/写操作}
-                G -->|读| H[Redis查询]
-                H -->|命中| I[返回数据]
-                H -->|未命中| J[数据库查询]
-                J --> K[更新Redis]
-                K --> I
-                G -->|写| L[Redis检查]
-                L -->|有数据| M[更新Redis & 事务更新DB]
-                L -->|无数据| N[查询DB & 事务更新DB & 更新Redis]
-                M --> O[定时刷新Redis-DB]
-                N --> O
-                O --> P[分库分表处理]
-                P --> Q{数据类型}
-                Q -->|热数据| R[独立热数据服务器]
-                Q -->|冷数据| S[集合冷数据服务器]
-                S --> T[冷数据备份: 一个月前数据到备份DB]
-                T --> U[可查询冷DB]
-                R --> V[事务保护]
-                S --> V
+                D --> E1[后端服务1]
+                D --> E2[后端服务2]
+                D --> E3[后端服务3]
+                E1 --> F[用户中台模块: 认证校验]
+                E2 --> F
+                E3 --> F
+                F --> G[业务模块: 操作处理]
+                G --> H{读/写操作}
+                H -->|读| I[Redis查询]
+                I -->|命中| J[返回数据]
+                I -->|未命中| K[数据库查询]
+                K --> L[更新Redis]
+                L --> J
+                F --> G[业务模块: 操作处理]
+                G --> H{读/写操作}
+                H -->|读| I[Redis查询]
+                I -->|命中| J[返回数据]
+                I -->|未命中| K[数据库查询]
+                K --> L[更新Redis]
+                L --> J
+                H -->|写| M[Redis检查]
+                M -->|有数据| N[更新Redis & 事务更新DB]
+                M -->|无数据| O[查询DB & 事务更新DB & 更新Redis]
+                N --> P[定时刷新Redis-DB]
+                O --> P
+                P --> Q[分库分表处理]
+                Q --> R{数据类型}
+                R -->|热数据| S[独立热数据服务器]
+                R -->|冷数据| T[集合冷数据服务器]
+                T --> U[冷数据备份: 一个月前数据到备份DB]
+                U --> V[可查询冷DB]
+                S --> W[事务保护]
+                T --> W
         </div>
     </div>
 
@@ -210,7 +222,7 @@
                     console.log('Gs found:', gs.length);
                     gs.forEach(g => {
                         const text = g.textContent.trim();
-                        if (text === 'HTTP' || text === 'WebSocket' || text === '前端App/Web') {
+                        if (text === 'HTTP' || text === 'WebSocket' || text === '前端App/Web' || text === 'Nginx网关' || text === '分发到后端服务') {
                             console.log('G with exact match:', text);
                             g.style.cursor = 'pointer';
                             g.addEventListener('click', function() {
@@ -218,6 +230,8 @@
                                 if (text === 'HTTP') type = 'HTTP';
                                 else if (text === 'WebSocket') type = 'WebSocket';
                                 else if (text === '前端App/Web') type = 'frontend';
+                                else if (text === 'Nginx网关') type = 'nginx';
+                                else if (text === '分发到后端服务') type = 'distribution';
                                 console.log('Clicked G:', type);
                                 toggleTooltip(this, type);
                             });
@@ -295,6 +309,37 @@
                     </ul>
                     <p><strong>业务数据：</strong>根据具体操作上传，如表单数据、文件等（标识化处理）。</p>
                     <p><strong>注意：</strong>确保数据格式正确，敏感信息加密传输。</p>
+                `;
+            } else if (type === 'nginx') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>Nginx网关说明</h4>
+                    <p><strong>作用：</strong>作为反向代理和负载均衡器，接收前端请求，分发到后端服务。</p>
+                    <p><strong>主要功能：</strong></p>
+                    <ul>
+                        <li>负载均衡：轮询、IP哈希、最少连接等算法。</li>
+                        <li>SSL/TLS终止：处理HTTPS加密。</li>
+                        <li>缓存：静态资源缓存，减少后端压力。</li>
+                        <li>安全：防火墙、限流、DDoS防护。</li>
+                        <li>日志记录：请求日志，便于监控。</li>
+                    </ul>
+                    <p><strong>配置示例：</strong>upstream backend { server 127.0.0.1:8080; server 127.0.0.1:8081; } location /api { proxy_pass http://backend; }</p>
+                    <p><strong>优势：</strong>高性能、轻量、易扩展。</p>
+                `;
+            } else if (type === 'distribution') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>分发到后端服务说明</h4>
+                    <p><strong>作用：</strong>将请求分发到多个后端服务器，实现负载均衡和高可用性。</p>
+                    <p><strong>主要功能：</strong></p>
+                    <ul>
+                        <li>负载均衡：根据算法（如轮询、权重）分配请求到不同服务器。</li>
+                        <li>故障转移：检测服务器健康状态，自动切换到可用服务器。</li>
+                        <li>扩展性：支持动态添加/移除服务器。</li>
+                        <li>性能优化：减少单点压力，提高响应速度。</li>
+                    </ul>
+                    <p><strong>示例：</strong>请求被分发到后端服务1、2、3中的一个或多个。</p>
+                    <p><strong>优势：</strong>提高系统可用性和性能。</p>
                 `;
             }
             tooltip.innerHTML = content;
