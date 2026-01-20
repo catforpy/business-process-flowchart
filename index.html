@@ -222,7 +222,7 @@
                     console.log('Gs found:', gs.length);
                     gs.forEach(g => {
                         const text = g.textContent.trim();
-                        if (text === 'HTTP' || text === 'WebSocket' || text === '前端App/Web' || text === 'Nginx网关' || text === '分发到后端服务') {
+                        if (text === 'HTTP' || text === 'WebSocket' || text === '前端App/Web' || text === 'Nginx网关' || text === '分发到后端服务' || text === '后端服务1' || text === '后端服务2' || text === '后端服务3') {
                             console.log('G with exact match:', text);
                             g.style.cursor = 'pointer';
                             g.addEventListener('click', function() {
@@ -232,6 +232,7 @@
                                 else if (text === '前端App/Web') type = 'frontend';
                                 else if (text === 'Nginx网关') type = 'nginx';
                                 else if (text === '分发到后端服务') type = 'distribution';
+                                else if (text === '后端服务1' || text === '后端服务2' || text === '后端服务3') type = 'backend';
                                 console.log('Clicked G:', type);
                                 toggleTooltip(this, type);
                             });
@@ -340,6 +341,21 @@
                     </ul>
                     <p><strong>示例：</strong>请求被分发到后端服务1、2、3中的一个或多个。</p>
                     <p><strong>优势：</strong>提高系统可用性和性能。</p>
+                `;
+            } else if (type === 'backend') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>后端服务说明</h4>
+                    <p><strong>多种部署情况：</strong></p>
+                    <ul>
+                        <li><strong>主备服务器（容灾备份）：</strong>纯粹的主备架构，用于备份和容灾。可以随时切换，确保服务连续性。主服务器处理正常流量，备服务器同步数据，故障时自动或手动切换。</li>
+                        <li><strong>业务拆分（性能优化）：</strong>根据业务特点拆分，高频访问或高资源占用（如AI推理、AI训练）的业务单独部署到高性能服务器上；低资源占用的业务部署到低性能服务器上，实现资源合理分配。</li>
+                        <li><strong>地理分布：</strong>不同地区的服务器部署，减少网络延迟，提高用户体验。</li>
+                        <li><strong>负载均衡集群：</strong>多个相同配置的服务器组成集群，根据负载动态分配请求。</li>
+                        <li><strong>安全隔离：</strong>敏感数据处理或高安全要求的业务部署到专用服务器。</li>
+                        <li><strong>版本控制：</strong>用于A/B测试、灰度发布或多版本并存。</li>
+                    </ul>
+                    <p><strong>优势：</strong>提高可用性、性能和安全性。</p>
                 `;
             }
             tooltip.innerHTML = content;
