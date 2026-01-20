@@ -222,7 +222,7 @@
                     console.log('Gs found:', gs.length);
                     gs.forEach(g => {
                         const text = g.textContent.trim();
-                        if (text === 'HTTP' || text === 'WebSocket' || text === '前端App/Web' || text === 'Nginx网关' || text === '分发到后端服务' || text === '后端服务1' || text === '后端服务2' || text === '后端服务3') {
+                        if (text === 'HTTP' || text === 'WebSocket' || text === '前端App/Web' || text === 'Nginx网关' || text === '分发到后端服务' || text === '后端服务1' || text === '后端服务2' || text === '后端服务3' || text === '用户中台模块: 认证校验') {
                             console.log('G with exact match:', text);
                             g.style.cursor = 'pointer';
                             g.addEventListener('click', function() {
@@ -233,6 +233,7 @@
                                 else if (text === 'Nginx网关') type = 'nginx';
                                 else if (text === '分发到后端服务') type = 'distribution';
                                 else if (text === '后端服务1' || text === '后端服务2' || text === '后端服务3') type = 'backend';
+                                else if (text === '用户中台模块: 认证校验') type = 'user-middle-tier';
                                 console.log('Clicked G:', type);
                                 toggleTooltip(this, type);
                             });
@@ -356,6 +357,27 @@
                         <li><strong>版本控制：</strong>用于A/B测试、灰度发布或多版本并存。</li>
                     </ul>
                     <p><strong>优势：</strong>提高可用性、性能和安全性。</p>
+                `;
+            } else if (type === 'user-middle-tier') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>用户中台模块: 认证校验与ID生成</h4>
+                    <p><strong>核心功能：</strong>生成全局唯一ID，用于用户注册时的手机号、名字、密码等信息。</p>
+                    <p><strong>数据库设计：</strong></p>
+                    <ul>
+                        <li><strong>号段概念：</strong>预分配ID号段，避免每次生成都访问数据库。</li>
+                        <li><strong>步长概念：</strong>每次申请的ID数量，控制性能。</li>
+                        <li><strong>表结构：</strong>t_id_generate_config，管理所有业务的ID生成配置。</li>
+                    </ul>
+                    <p><strong>并发控制机制：</strong></p>
+                    <ul>
+                        <li><strong>信号量：</strong>保证只有一个线程申请新号段，避免并发冲突。</li>
+                        <li><strong>乐观锁：</strong>version字段控制并发更新，只有匹配版本的线程才能成功。</li>
+                        <li><strong>异步线程池：</strong>号段刷新异步执行，不阻塞ID生成。</li>
+                        <li><strong>阈值策略：</strong>号段使用率超过75%时异步申请新号段。</li>
+                    </ul>
+                    <p><strong>核心机制：</strong>一张表管理所有业务的ID生成，支持扩展枚举(IdTypeEnum)添加新业务类型。</p>
+                    <p><strong>示例：</strong>用户ID从1开始，订单ID从10000开始，各有独立号段和步长配置。</p>
                 `;
             }
             tooltip.innerHTML = content;
