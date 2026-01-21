@@ -97,9 +97,9 @@
                 E2 --> F
                 E3 --> F
                 F --> G[业务模块: 操作处理]
-                G --> DBOp{Need DB operation}
-                DBOp -->|Yes| H{读/写操作}
-                DBOp -->|No| X[返回Nginx网关]
+                G --> DBOp{需要数据库操作}
+                DBOp -->|是| H{读/写操作}
+                DBOp -->|否| X[返回Nginx网关]
                 X --> C
                 H -->|读| I[Redis查询]
                 I -->|命中| J[返回数据]
