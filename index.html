@@ -86,23 +86,42 @@
         <h2>整体架构与流程图</h2>
         <div class="mermaid">
             graph TD
-                A[前端App/Web] --> B{连接类型}
+                A[前端App/Web] --> CDN[CDN加速<br/>静态资源]
+                CDN --> C
+                A --> B{连接类型}
                 B -->|HTTP| C[Nginx网关<br/>健康检查]
                 B -->|WebSocket| C
-                C -->|健康主服务| D1[核心主后端服务]
-                C -->|健康备用服务| D2[核心备用后端服务]
-                C -->|功能拆分主| D3[拆分功能主后端服务]
-                C -->|功能拆分备| D4[拆分功能备用后端服务]
-                D1 --> F[用户中台模块: 认证校验]
+                C -->|限流| C1[限流控制<br/>令牌桶/漏桶]
+                C1 -->|通过| C2[熔断器<br/>服务熔断]
+                C2 -->|健康主服务| D1[核心主后端服务]
+                C2 -->|健康备用服务| D2[核心备用后端服务]
+                C2 -->|功能拆分主| D3[拆分功能主后端服务]
+                C2 -->|功能拆分备| D4[拆分功能备用后端服务]
+                C2 -.降级.-> CE[降级处理<br/>默认值/静态页面]
+                D1 --> DA[本地缓存<br/>Guava/Caffeine]
+                D2 --> DA
+                D3 --> DA
+                D4 --> DA
+                DA --> F[用户中台模块: 认证校验]
+                D1 --> F
                 D2 --> F
                 D3 --> F
                 D4 --> F
                 F --> G[业务模块: 操作处理]
-                G --> DBOp{需要数据库操作}
+                G --> GA{需要分布式锁}
+                GA -->|是| GB[Redis分布式锁<br/>SETNX/Redlock]
+                GA -->|否| GBB[获取锁成功]
+                GB --> GBB{抢锁成功}
+                GBB -->|是| GBC[执行业务逻辑]
+                GBB -->|否| GBW[等待重试]
+                GBW --> GB
+                GBC --> DBOp{需要数据库操作}
+                G --> DBOp
                 DBOp -->|是| H{读/写操作}
                 DBOp -->|否| X[返回Nginx网关]
                 X --> C
                 H -->|读| I[Redis哨兵集群<br/>获取主节点地址]
+                DA -.多级缓存.-> I
                 I --> J[Redis主节点查询]
                 J -->|命中| K[返回数据]
                 K --> G
@@ -115,7 +134,9 @@
                 O -->|无数据| Q[查询DB & 事务更新DB & 更新Redis主节点]
                 P --> R[定时刷新Redis-DB]
                 Q --> R
+                R --> R2[Redis-DB定期同步<br/>数据一致性保障]
                 R --> S[分库分表处理]
+                R2 --> S
                 S --> T{数据类型}
                 T -->|热数据| U[独立热数据服务器]
                 T -->|冷数据| V[集合冷数据服务器]
@@ -123,12 +144,24 @@
                 W --> Y[可查询冷DB]
                 U --> Z[事务保护]
                 V --> Z
+                P --> MQ[消息队列<br/>异步解耦]
+                Q --> MQ
+                MQ --> MQ1[日志服务]
+                MQ --> MQ2[统计服务]
+                MQ --> MQ3[通知服务]
                 I -.监控.-> AA[Redis哨兵监控<br/>主从节点健康]
                 AA -.自动故障转移.-> AB[Redis从节点提升主节点]
                 AB -.通知.-> I
                 N -.监控.-> AA
                 C -.健康检查.-> AC[后端服务健康监控]
                 AC -.主服务故障.-> AD[Nginx自动切换备用服务]
+                A -.全链路追踪.-> MON[全链路监控<br/>SkyWalking/Zipkin]
+                C -.日志采集.-> MON
+                DA -.缓存监控.-> MON
+                I -.Redis监控.-> MON
+                S -.数据库监控.-> MON
+                MQ -.异步监控.-> MON
+                MON -.告警通知.-> ALERT[告警中心<br/>Prometheus/Grafana]
         </div>
     </div>
 
@@ -362,7 +395,24 @@ check interval=3000 rise=2 fall=3 timeout=1000;
                         { text: '命中', type: 'cache-hit' },
                         { text: '未命中', type: 'cache-miss' },
                         { text: '数据库查询', type: 'db-query' },
-                        { text: '更新Redis主节点', type: 'update-redis-master' }
+                        { text: '更新Redis主节点', type: 'update-redis-master' },
+                        { text: 'CDN加速', type: 'cdn' },
+                        { text: '限流控制', type: 'rate-limiter' },
+                        { text: '熔断器', type: 'circuit-breaker' },
+                        { text: '降级处理', type: 'degradation' },
+                        { text: '本地缓存', type: 'local-cache' },
+                        { text: '需要分布式锁', type: 'need-distributed-lock' },
+                        { text: 'Redis分布式锁', type: 'distributed-lock' },
+                        { text: '抢锁成功', type: 'lock-result' },
+                        { text: '执行业务逻辑', type: 'execute-business' },
+                        { text: '等待重试', type: 'lock-retry' },
+                        { text: 'Redis-DB定期同步', type: 'redis-db-sync' },
+                        { text: '消息队列', type: 'message-queue' },
+                        { text: '日志服务', type: 'mq-log-service' },
+                        { text: '统计服务', type: 'mq-stats-service' },
+                        { text: '通知服务', type: 'mq-notify-service' },
+                        { text: '全链路监控', type: 'full-link-monitoring' },
+                        { text: '告警中心', type: 'alert-center' }
                     ];
 
                     // 查找所有可能包含文本的元素
