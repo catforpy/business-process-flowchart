@@ -1297,9 +1297,22 @@ check interval=3000 rise=2 fall=3 timeout=1000;
                         { text: '等待重试', type: 'lock-retry' },
                         { text: 'Redis-DB定期同步', type: 'redis-db-sync' },
                         { text: '消息队列', type: 'message-queue' },
+                        { text: '消息队列<br/>异步解耦<br/>事件总线', type: 'message-queue' },
                         { text: '日志服务', type: 'mq-log-service' },
                         { text: '统计服务', type: 'mq-stats-service' },
                         { text: '通知服务', type: 'mq-notify-service' },
+                        { text: '登录认证服务', type: 'login-service' },
+                        { text: '即时通讯服务', type: 'im-service' },
+                        { text: '视频服务', type: 'video-service' },
+                        { text: '商品订单服务', type: 'order-service' },
+                        { text: '客服服务', type: 'customer-service' },
+                        { text: '商户管理服务', type: 'merchant-service' },
+                        { text: '登录服务<br/>Redis+DB', type: 'login-service-db' },
+                        { text: '即时通讯<br/>Redis+DB', type: 'im-service-db' },
+                        { text: '视频服务<br/>Redis+DB', type: 'video-service-db' },
+                        { text: '订单服务<br/>Redis+DB', type: 'order-service-db' },
+                        { text: '客服服务<br/>Redis+DB', type: 'customer-service-db' },
+                        { text: '商户管理<br/>Redis+DB', type: 'merchant-service-db' },
                         { text: '全链路监控', type: 'full-link-monitoring' },
                         { text: '告警中心', type: 'alert-center' }
                     ];
@@ -4641,6 +4654,184 @@ setInterval(() => {
                         <li><strong>电话：</strong>适合P0严重告警，确保处理人及时响应</li>
                     </ul>
                     <p><strong>业务价值：</strong>及时感知系统异常，快速响应故障，保障系统可用性和用户体验，是系统稳定运行的重要保障。</p>
+                `;
+            } else if (type === 'login-service') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>登录认证服务（Login Service）</h4>
+                    <p><strong>作用：</strong>负责用户注册、登录、密码管理、身份认证等核心安全功能。</p>
+                    <p><strong>订阅事件：</strong>用户注册成功、密码修改成功、手机号变更</p>
+                    <p><strong>处理逻辑：</strong></p>
+                    <ul>
+                        <li><strong>用户注册：</strong>创建用户账号、发送欢迎短信/邮件</li>
+                        <li><strong>密码修改：</strong>发送安全通知（短信/邮件）</li>
+                        <li><strong>手机号变更：</strong>重新验证新手机号</li>
+                    </ul>
+                    <p><strong>自身数据存储：</strong></p>
+                    <ul>
+                        <li><strong>Redis：</strong>Token缓存（30分钟TTL）、用户登录状态、验证码（5分钟TTL）</li>
+                        <li><strong>DB：</strong>用户基本信息、登录历史、认证日志</li>
+                    </ul>
+                    <p><strong>业务价值：</strong>保障系统安全，防止未授权访问，提供可靠的身份认证服务。</p>
+                `;
+            } else if (type === 'im-service') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>即时通讯服务（IM Service）</h4>
+                    <p><strong>作用：</strong>提供实时聊天、推送、WebSocket连接管理等即时通讯功能。</p>
+                    <p><strong>订阅事件：</strong>用户注册成功、订单创建成功、订单状态变更、客服消息</p>
+                    <p><strong>处理逻辑：</strong></p>
+                    <ul>
+                        <li><strong>用户注册：</strong>创建IM账号，分配好友列表</li>
+                        <li><strong>订单创建：</strong>推送订单通知到用户App</li>
+                        <li><strong>订单状态变更：</strong>推送物流信息、发货通知</li>
+                        <li><strong>客服消息：</strong>实时推送给用户和客服</li>
+                    </ul>
+                    <p><strong>自身数据存储：</strong></p>
+                    <ul>
+                        <li><strong>Redis：</strong>用户会话信息（在线状态）、未读消息数、WebSocket连接信息</li>
+                        <li><strong>DB：</strong>聊天消息记录、群组信息、好友关系</li>
+                    </ul>
+                    <p><strong>业务价值：</strong>提供实时沟通能力，提升用户体验，支持客服、社交等场景。</p>
+                `;
+            } else if (type === 'video-service') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>视频服务（Video Service）</h4>
+                    <p><strong>作用：</strong>处理视频上传、转码、存储、播放等视频相关功能。</p>
+                    <p><strong>订阅事件：</strong>用户注册成功、视频上传完成、视频审核通过</p>
+                    <p><strong>处理逻辑：</strong></p>
+                    <ul>
+                        <li><strong>用户注册：</strong>初始化用户视频空间，分配默认权限</li>
+                        <li><strong>视频上传：</strong>触发转码（标清、高清、超清），生成缩略图</li>
+                        <li><strong>审核通过：</strong>更新视频状态为"已发布"，通知用户</li>
+                    </ul>
+                    <p><strong>自身数据存储：</strong></p>
+                    <ul>
+                        <li><strong>Redis：</strong>视频元信息（标题、时长、播放数）、热门视频排行榜</li>
+                        <li><strong>DB：</strong>视频元数据、转码记录、播放历史</li>
+                        <li><strong>对象存储：</strong>视频文件（OSS）</li>
+                    </ul>
+                    <p><strong>业务价值：</strong>提供完整的视频处理能力，支持UGC、短视频、直播等场景。</p>
+                `;
+            } else if (type === 'order-service') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>商品订单服务（Order Service）</h4>
+                    <p><strong>作用：</strong>处理订单创建、支付、退款、库存管理等核心交易功能。</p>
+                    <p><strong>订阅事件：</strong>订单创建成功、订单支付成功、订单取消、订单退款</p>
+                    <p><strong>处理逻辑：</strong></p>
+                    <ul>
+                        <li><strong>订单创建：</strong>扣减库存（分布式锁保证），生成订单号</li>
+                        <li><strong>支付成功：</strong>更新订单状态为"已支付"，通知发货服务</li>
+                        <li><strong>订单取消：</strong>恢复库存，处理退款</li>
+                    </ul>
+                    <p><strong>自身数据存储：</strong></p>
+                    <ul>
+                        <li><strong>Redis：</strong>订单信息（热点订单，最近7天）、实时库存、购物车数据</li>
+                        <li><strong>DB：</strong>订单详情、商品信息、交易流水</li>
+                    </ul>
+                    <p><strong>业务价值：</strong>处理核心交易流程，保证库存准确，支持秒杀、抢购等高并发场景。</p>
+                `;
+            } else if (type === 'customer-service') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>客服服务（Customer Service）</h4>
+                    <p><strong>作用：</strong>提供工单管理、客服聊天、投诉处理、售后支持等客户服务功能。</p>
+                    <p><strong>订阅事件：</strong>订单创建成功、用户投诉、退款申请、评价提交</p>
+                    <p><strong>处理逻辑：</strong></p>
+                    <ul>
+                        <li><strong>订单创建：</strong>自动创建工单，准备售后支持</li>
+                        <li><strong>用户投诉：</strong>分配客服人员，优先处理</li>
+                        <li><strong>退款申请：</strong>触发退款流程，通知财务</li>
+                    </ul>
+                    <p><strong>自身数据存储：</strong></p>
+                    <ul>
+                        <li><strong>Redis：</strong>待处理工单队列、客服在线状态、常见问题FAQ</li>
+                        <li><strong>DB：</strong>工单详情、聊天记录、评价信息</li>
+                    </ul>
+                    <p><strong>业务价值：</strong>提供完整的客户服务能力，提升用户满意度，降低客服成本。</p>
+                `;
+            } else if (type === 'merchant-service') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>商户管理服务（Merchant Service）</h4>
+                    <p><strong>作用：</strong>为商户提供订单管理、账户余额、结算、对账等商家服务功能。</p>
+                    <p><strong>订阅事件：</strong>订单创建成功、订单支付成功、商户入驻申请</p>
+                    <p><strong>处理逻辑：</strong></p>
+                    <ul>
+                        <li><strong>订单创建：</strong>推送新订单通知到商户App，发送短信提醒</li>
+                        <li><strong>支付成功：</strong>更新商户账户余额（分布式锁保护），生成结算单</li>
+                        <li><strong>入驻申请：</strong>触发审核流程，通知运营人员</li>
+                    </ul>
+                    <p><strong>自身数据存储：</strong></p>
+                    <ul>
+                        <li><strong>Redis：</strong>商户基本信息、账户余额（实时）、今日订单数、分布式锁（lock:merchant:*）</li>
+                        <li><strong>DB：</strong>商户详细信息、账户余额、结算记录、交易流水</li>
+                    </ul>
+                    <p><strong>关键流程示例（更新商户余额）：</strong></p>
+                    <ol>
+                        <li>消费MQ消息：订单支付成功事件</li>
+                        <li>获取分布式锁：SET lock:merchant:balance:{商户ID}</li>
+                        <li>查询Redis余额：GET merchant:balance:{商户ID}</li>
+                        <li>计算新余额：当前余额 + 到账金额</li>
+                        <li>DB事务更新：UPDATE账户余额 + INSERT交易流水 + COMMIT</li>
+                        <li>更新Redis缓存：SET merchant:balance:{商户ID}</li>
+                        <li>释放分布式锁：DEL lock</li>
+                    </ol>
+                    <p><strong>为什么需要分布式锁：</strong>防止并发问题！当前余额100元，订单A(+50元)和订单B(+30元)同时支付，没有锁会导致最终余额130元（错误，应该是180元），有锁保证最终余额180元（正确）。</p>
+                    <p><strong>业务价值：</strong>为商户提供完整的订单和财务管理能力，保证资金安全，支持对账和结算。</p>
+                `;
+            } else if (type === 'login-service-db' || type === 'im-service-db' || type === 'video-service-db' || type === 'order-service-db' || type === 'customer-service-db' || type === 'merchant-service-db') {
+                const serviceNameMap = {
+                    'login-service-db': '登录认证服务',
+                    'im-service-db': '即时通讯服务',
+                    'video-service-db': '视频服务',
+                    'order-service-db': '商品订单服务',
+                    'customer-service-db': '客服服务',
+                    'merchant-service-db': '商户管理服务'
+                };
+                const serviceName = serviceNameMap[type] || '微服务';
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>${serviceName}的数据存储架构</h4>
+                    <p><strong>核心原则：</strong>每个微服务都有自己独立的Redis和DB实例，不共享数据存储。服务间通过MQ交换数据，而非直接访问对方的DB。</p>
+                    <p><strong>Redis存储（缓存层）：</strong></p>
+                    <ul>
+                        <li><strong>热点数据：</strong>频繁访问的数据，响应时间&lt;5ms</li>
+                        <li><strong>会话状态：</strong>在线状态、未读消息数、购物车数据</li>
+                        <li><strong>分布式锁：</strong>保证并发安全的锁机制</li>
+                        <li><strong>计数器：</strong>实时统计、订单数、播放数等</li>
+                    </ul>
+                    <p><strong>DB存储（持久化层）：</strong></p>
+                    <ul>
+                        <li><strong>业务数据：</strong>完整的业务记录，持久化保存</li>
+                        <li><strong>历史记录：</strong>聊天记录、交易流水、操作日志</li>
+                        <li><strong>关系数据：</strong>用户关系、好友关系、订单详情</li>
+                    </ul>
+                    <p><strong>典型查询流程：</strong></p>
+                    <ol>
+                        <li><strong>查询Redis：</strong>GET key（1-5ms）</li>
+                        <li><strong>命中：</strong>直接返回数据</li>
+                        <li><strong>未命中：</strong>查询DB（10-100ms）→ 写入Redis → 返回数据</li>
+                    </ol>
+                    <p><strong>写入流程（带分布式锁）：</strong></p>
+                    <ol>
+                        <li><strong>获取锁：</strong>SET lock:key NX PX 30000</li>
+                        <li><strong>查询Redis：</strong>GET key（获取当前值）</li>
+                        <li><strong>计算新值：</strong>业务逻辑计算</li>
+                        <li><strong>DB事务更新：</strong>START TRANSACTION → UPDATE/INSERT → COMMIT</li>
+                        <li><strong>更新Redis：</strong>SET key 新值</li>
+                        <li><strong>释放锁：</strong>DEL lock</li>
+                    </ol>
+                    <p><strong>为什么每个服务独立Redis+DB：</strong></p>
+                    <ul>
+                        <li><strong>数据隔离：</strong>服务间数据完全隔离，避免误操作</li>
+                        <li><strong>独立扩展：</strong>可根据负载独立扩展（如：订单数据量大，分100个表）</li>
+                        <li><strong>技术选型灵活：</strong>可选不同存储（MySQL、MongoDB、OSS等）</li>
+                        <li><strong>故障隔离：</strong>某个服务DB故障不影响其他服务</li>
+                    </ul>
+                    <p><strong>业务价值：</strong>通过独立的Redis+DB架构，实现数据隔离、独立扩展、故障隔离，是微服务架构的核心原则（Database per Service）。</p>
                 `;
             }
             tooltip.innerHTML = content;
