@@ -154,16 +154,49 @@
                 MQ -.事件分发.-> VIDEO[视频服务]
                 MQ -.事件分发.-> ORDER[商品订单服务]
                 MQ -.事件分发.-> CS[客服服务]
-                MQ -.事件分发.-> MERCHANT[商户管理服务]
+                MQ -.事件分发.-> MERCHANT[商户管理服务<br/>详细展开↓]
 
                 LOGIN --> LOGIN_DB[(登录服务<br/>Redis+DB)]
                 IM --> IM_DB[(即时通讯<br/>Redis+DB)]
                 VIDEO --> VIDEO_DB[(视频服务<br/>Redis+DB)]
                 ORDER --> ORDER_DB[(订单服务<br/>Redis+DB)]
                 CS --> CS_DB[(客服服务<br/>Redis+DB)]
-                MERCHANT --> MERCHANT_DB[(商户管理<br/>Redis+DB)]
-                I -.监控.-> AA[Redis哨兵监控<br/>主从节点健康]
-                AA -.自动故障转移.-> AB[Redis从节点提升主节点]
+
+                MERCHANT --> M1[商户服务<br/>消费MQ消息]
+                M1 --> M2{需要分布式锁?}
+                M2 -->|是| M3[商户Redis分布式锁<br/>SET lock:merchant:*]
+                M2 -->|否| M4[商户Redis哨兵集群<br/>获取主节点地址]
+                M3 --> M3_OK{抢锁成功?}
+                M3_OK -->|是| M5[商户Redis主节点查询<br/>GET merchant:balance]
+                M3_OK -->|否| M3_WAIT[等待重试]
+                M3_WAIT --> M3
+                M5 --> M6{查询结果}
+                M6 -->|命中| M7[返回余额数据]
+                M6 -->|未命中| M8[(商户DB查询<br/>SELECT balance)]
+                M8 --> M9[更新商户Redis主节点<br/>SET merchant:balance]
+                M9 --> M7
+                M4 --> M10[商户Redis主节点<br/>读写操作]
+                M10 --> M11{读写操作}
+                M11 -->|读| M12[商户Redis主节点查询]
+                M11 -->|写| M13[商户Redis主节点检查]
+                M12 --> M14[返回数据]
+                M13 --> M15{有数据?}
+                M15 -->|有| M16[(商户DB事务更新<br/>UPDATE + INSERT)]
+                M15 -->|无| M17[(商户DB查询<br/>SELECT)]
+                M16 --> M18[更新商户Redis主节点]
+                M17 --> M18
+                M18 --> M19[商户Redis-DB<br/>定期同步]
+
+                M4 -.商户哨兵监控.-> MAA[商户Redis哨兵监控<br/>主从节点健康]
+                MAA -.商户故障转移.-> MAB[商户Redis从节点<br/>提升主节点]
+                MAB -.通知商户服务.-> M4
+                M16 -.商户数据分片.-> MS[商户分库分表<br/>按商户ID分片]
+                MS -.商户冷热分离.-> MT{商户数据类型}
+                MT -->|热数据| MU[商户热数据DB<br/>最近3个月数据]
+                MT -->|冷数据| MV[商户冷数据DB<br/>3个月前数据]
+
+                I -.监控.-> AA[主流程Redis哨兵监控<br/>主从节点健康]
+                AA -.自动故障转移.-> AB[主流程Redis从节点提升主节点]
                 AB -.通知.-> I
                 N -.监控.-> AA
                 C -.健康检查.-> AC[后端服务健康监控]
