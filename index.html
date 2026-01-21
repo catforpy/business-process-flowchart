@@ -385,6 +385,18 @@
                     <span class="close-btn" onclick="closeTooltip()">×</span>
                     <h4>业务模块: 操作处理</h4>
                     <p><strong>模块功能：</strong>根据用户请求进行具体业务逻辑处理，区分是否需要数据库操作。</p>
+                    <p><strong>处理逻辑：</strong></p>
+                    <ul>
+                        <li><strong>无需数据库操作：</strong>直接返回前端，数据闭环完成。</li>
+                        <li><strong>需要数据库操作：</strong>进入Redis查询流程。</li>
+                    </ul>
+                    <p><strong>Redis查询命中后的循环处理：</strong></p>
+                    <ul>
+                        <li>数据返回业务模块，由业务模块再次处理。</li>
+                        <li>业务模块判断是否需要进一步查询数据库。</li>
+                        <li>如果需要，继续走数据库查询逻辑。</li>
+                        <li>如果不需要，直接返回前端。</li>
+                    </ul>
                     <p><strong>不需要读写查询数据库的操作（直接返回）：</strong></p>
                     <ul>
                         <li><strong>纯计算操作：</strong>如数学计算、数据格式转换、加密解密等。</li>
@@ -401,7 +413,7 @@
                         <li><strong>复杂业务逻辑：</strong>需要结合数据库数据进行判断和处理。</li>
                         <li><strong>数据验证：</strong>检查数据完整性、业务规则验证。</li>
                     </ul>
-                    <p><strong>处理流程：</strong>根据操作类型决定是否进入读/写数据库流程。</p>
+                    <p><strong>处理流程：</strong>根据操作类型决定是否进入读/写数据库流程，支持循环处理以优化性能。</p>
                 `;
             }
             tooltip.innerHTML = content;
