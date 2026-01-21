@@ -960,6 +960,274 @@ check interval=3000 rise=2 fall=3 timeout=1000;
                 <li><strong>削峰填谷：</strong>高峰期消息堆积在MQ（支持百万级消息堆积），低峰期慢慢消费，避免系统压垮</li>
                 <li><strong>数据最终一致性：</strong>通过MQ保证最终一致性（即使某个服务暂时故障，恢复后可继续消费消息）</li>
             </ul>
+
+            <h3>商户管理服务案例：完整的Redis+DB业务流程</h3>
+            <p><strong>为什么选择商户管理服务作为案例：</strong>商户管理服务是一个典型的微服务，包含读取、写入、金额计算、并发控制等多个场景，能够完整展示Redis+DB的协作机制。</p>
+
+            <h4>商户管理服务架构图</h4>
+            <div class="mermaid">
+                graph TD
+                    MQ[消息队列<br/>订单创建成功事件] --> CONSUME[商户管理服务<br/>消费消息]
+                    CONSUME --> CHECK{订单类型判断}
+
+                    CHECK -->|新订单| NOTI[通知商户<br/>短信+App推送]
+                    CHECK -->|支付成功| BALANCE[更新商户余额<br/>分布式锁保护]
+                    CHECK -->|订单退款| REFUND[处理退款<br/>扣减余额]
+
+                    NOTI --> NOTI_REDIS[Redis查询<br/>商户基本信息]
+                    NOTI_REDIS --> NOTI_REDIS_HIT{Redis有数据?}
+                    NOTI_REDIS_HIT -->|是| NOTI_SEND[发送通知]
+                    NOTI_REDIS_HIT -->|否| NOTI_DB[(查询商户DB)]
+                    NOTI_DB --> NOTI_REDIS_WRITE[更新Redis缓存]
+                    NOTI_REDIS_WRITE --> NOTI_SEND
+
+                    BALANCE --> LOCK[Redis分布式锁<br/>lock:merchant:balance:商户ID]
+                    LOCK --> LOCK_CHECK{抢锁成功?}
+                    LOCK_CHECK -->|否| LOCK_WAIT[等待10ms重试]
+                    LOCK_WAIT --> LOCK
+                    LOCK_CHECK -->|是| BALANCE_REDIS[Redis查询<br/>当前余额]
+                    BALANCE_REDIS --> BALANCE_CALC[计算新余额<br/>当前余额+订单金额]
+                    BALANCE_CALC --> BALANCE_DB[(DB事务更新<br/>START TRANSACTION]
+                    BALANCE_DB --> BALANCE_DB_UPDATE[UPDATE账户余额<br/>SET balance=新余额]
+                    BALANCE_DB_UPDATE --> BALANCE_DB_INSERT[INSERT交易流水<br/>商户ID,订单ID,金额,时间]
+                    BALANCE_DB_INSERT --> BALANCE_DB_COMMIT[COMMIT<br/>提交事务]
+                    BALANCE_DB_COMMIT --> BALANCE_REDIS_UPDATE[更新Redis缓存<br/>SET商户余额=新余额]
+                    BALANCE_REDIS_UPDATE --> BALANCE_RELEASE[释放分布式锁<br/>DEL lock]
+
+                    REFUND --> REFUND_LOCK[Redis分布式锁<br/>lock:merchant:refund:商户ID]
+                    REFUND_LOCK --> REFUND_DB[(DB查询订单<br/>确认可退款)]
+                    REFUND_DB --> REFUND_CHECK{退款金额检查}
+                    REFUND_CHECK -->|余额不足| REFUND_FAIL[退款失败<br/>发送通知]
+                    REFUND_CHECK -->|余额充足| REFUND_DB_UPDATE[(DB事务更新<br/>扣减余额,记录退款)]
+                    REFUND_DB_UPDATE --> REFUND_REDIS[更新Redis余额]
+                    REFUND_REDIS --> REFUND_OK[退款成功<br/>发送通知]
+
+                    style LOCK fill:#ff9999
+                    style REFUND_LOCK fill:#ff9999
+                    style BALANCE_DB fill:#99ccff
+                    style REFUND_DB fill:#99ccff
+                    style NOTI_REDIS fill:#99ff99
+                    style BALANCE_REDIS fill:#99ff99
+                    style REFUND_REDIS fill:#99ff99
+            </div>
+
+            <h4>场景1：新订单通知商户</h4>
+            <p><strong>业务场景：</strong>用户下单成功后，需要通知商户有新订单</p>
+            <p><strong>处理流程：</strong></p>
+            <ol>
+                <li><strong>接收MQ消息：</strong>消费"订单创建成功"事件，提取商户ID、订单ID、订单金额、商品信息</li>
+                <li><strong>查询商户基本信息（优先Redis）：</strong>
+                    <ul>
+                        <li>查询Redis：GET merchant:info:{商户ID}</li>
+                        <li><strong>Redis命中（&lt;5ms）：</strong>获取商户名称、手机号、App推送Token，直接发送通知</li>
+                        <li><strong>Redis未命中：</strong>查询DB（SELECT * FROM merchant WHERE id={商户ID}），将结果写入Redis（TTL=30分钟），再发送通知</li>
+                    </ul>
+                </li>
+                <li><strong>发送通知：</strong>
+                    <ul>
+                        <li><strong>短信通知：</strong>调用短信网关，发送订单详情（商品名称、金额、收货地址）</li>
+                        <li><strong>App推送：</strong>通过商户App的推送Token，推送新订单消息</li>
+                        <li><strong>WebSocket推送：</strong>如果商户在后台管理系统在线，实时推送订单弹窗</li>
+                    </ul>
+                </li>
+            </ol>
+            <p><strong>为什么先查Redis：</strong>商户基本信息不常变更（手机号、商户名称），非常适合缓存。Redis命中率>95%，只有5%的请求需要查DB，性能提升20倍。</p>
+
+            <h4>场景2：订单支付成功，更新商户余额（核心场景）</h4>
+            <p><strong>业务场景：</strong>用户支付订单成功后，需要给商户账户增加订单金额（扣除平台佣金后）</p>
+            <p><strong>核心挑战：</strong>并发问题！如果用户同时支付多个订单，多个线程同时更新商户余额，可能导致余额计算错误。</p>
+            <p><strong>处理流程（使用分布式锁保证并发安全）：</strong></p>
+            <ol>
+                <li><strong>接收MQ消息：</strong>消费"订单支付成功"事件，提取商户ID、订单金额、平台佣金率</li>
+                <li><strong>计算到账金额：</strong>到账金额 = 订单金额 × (1 - 平台佣金率)</li>
+                <li><strong>获取分布式锁（关键步骤）：</strong>
+                    <ul>
+                        <li>执行Redis命令：SET lock:merchant:balance:{商户ID} "unique_value" NX PX 30000</li>
+                        <li><strong>抢锁成功：</strong>继续后续流程</li>
+                        <li><strong>抢锁失败：</strong>等待10ms重试，最多重试3次</li>
+                    </ul>
+                </li>
+                <li><strong>查询当前余额（Redis）：</strong>GET merchant:balance:{商户ID}</li>
+                <li><strong>计算新余额：</strong>新余额 = 当前余额 + 到账金额</li>
+                <li><strong>DB事务更新（ACID保证）：</strong>
+                    <ul>
+                        <li>START TRANSACTION（开启事务）</li>
+                        <li>UPDATE merchant_account SET balance = 新余额 WHERE merchant_id = {商户ID}</li>
+                        <li>INSERT INTO transaction_log (merchant_id, order_id, amount, type, create_time) VALUES (...)</li>
+                        <li>COMMIT（提交事务）</li>
+                    </ul>
+                </li>
+                <li><strong>更新Redis缓存：</strong>SET merchant:balance:{商户ID} {新余额}</li>
+                <li><strong>释放分布式锁：</strong>删除锁（Lua脚本保证原子性）</li>
+            </ol>
+            <p><strong>为什么需要分布式锁：</strong>防止并发问题！示例：</p>
+            <ul>
+                <li><strong>没有锁的情况：</strong>当前余额100元，订单A（+50元）和订单B（+30元）同时支付</li>
+                <li>线程1读取余额100元，计算新余额150元</li>
+                <li>线程2读取余额100元（此时线程1还未写入），计算新余额130元</li>
+                <li>线程1写入150元</li>
+                <li>线程2写入130元（错误！应该是180元）</li>
+                <li><strong>结果：丢失50元，商户投诉</strong></li>
+            </ul>
+            <p><strong>有锁的情况：</strong></p>
+            <ul>
+                <li>线程1抢到锁，读取余额100元，计算新余额150元，写入DB，释放锁</li>
+                <li>线程2等待线程1释放锁后，抢到锁，读取余额150元（正确！），计算新余额180元，写入DB，释放锁</li>
+                <li><strong>结果：余额正确180元</strong></li>
+            </ul>
+
+            <h4>场景3：订单退款，扣减商户余额</h4>
+            <p><strong>业务场景：</strong>用户退款，需要从商户账户扣减退款金额</p>
+            <p><strong>处理流程：</strong></p>
+            <ol>
+                <li><strong>接收MQ消息：</strong>消费"订单退款"事件，提取商户ID、退款金额</li>
+                <li><strong>获取分布式锁：</strong>SET lock:merchant:refund:{商户ID} "unique_value" NX PX 30000</li>
+                <li><strong>DB查询当前余额：</strong>SELECT balance FROM merchant_account WHERE merchant_id = {商户ID} FOR UPDATE（悲观锁）</li>
+                <li><strong>余额充足性检查：</strong>IF 当前余额 >= 退款金额 THEN 继续 ELSE 退款失败</li>
+                <li><strong>DB事务更新：</strong>
+                    <ul>
+                        <li>UPDATE merchant_account SET balance = balance - 退款金额</li>
+                        <li>INSERT INTO transaction_log (..., type='退款', ...)</li>
+                        <li>COMMIT</li>
+                    </ul>
+                </li>
+                <li><strong>更新Redis缓存：</strong>SET merchant:balance:{商户ID} {新余额}</li>
+                <li><strong>释放分布式锁</li>
+            </ol>
+            <p><strong>为什么查询DB而非Redis：</strong>退款涉及金额扣减，必须从DB读取最新余额，保证100%准确。即使Redis有缓存，也要查DB。</p>
+
+            <h4>商户管理服务 vs 主流程的Redis-DB架构对比</h4>
+            <table border="1" cellpadding="10" style="border-collapse: collapse; width: 100%; margin-top: 10px;">
+                <tr style="background-color: #f0f0f0;">
+                    <th><strong>对比维度</strong></th>
+                    <th><strong>主流程（分布式锁→Redis→DB）</strong></th>
+                    <th><strong>商户管理服务（微服务独立）</strong></th>
+                    <th><strong>相同点</strong></th>
+                </tr>
+                <tr>
+                    <td><strong>Redis作用</strong></td>
+                    <td>L2分布式缓存，存储热点数据</td>
+                    <td>L2分布式缓存，存储商户信息、余额</td>
+                    <td>✅ 都是分布式缓存，提升性能</td>
+                </tr>
+                <tr>
+                    <td><strong>DB作用</strong></td>
+                    <td>L3持久化存储，最终数据保障</td>
+                    <td>商户服务专用DB，持久化存储</td>
+                    <td>✅ 都是持久化存储，保证数据安全</td>
+                </tr>
+                <tr>
+                    <td><strong>分布式锁</strong></td>
+                    <td>通用分布式锁，适用于所有业务</td>
+                    <td>商户专用锁（lock:merchant:*），粒度更细</td>
+                    <td>✅ 都使用Redis SETNX实现，保证并发安全</td>
+                </tr>
+                <tr>
+                    <td><strong>Redis哨兵</strong></td>
+                    <td>全服务共享的Redis哨兵集群</td>
+                    <td>共享同一个Redis哨兵集群（通常）</td>
+                    <td>✅ 都依赖Redis哨兵保证高可用</td>
+                </tr>
+                <tr>
+                    <td><strong>数据隔离</strong></td>
+                    <td>所有业务共享Redis和DB</td>
+                    <td>商户服务独占自己的数据（不与其他服务共享DB）</td>
+                    <td>❌ 主流程共享，微服务隔离</td>
+                </tr>
+                <tr>
+                    <td><strong>扩展性</strong></td>
+                    <td>单体应用，扩展需要整体扩容</td>
+                    <td>独立服务，可单独扩容（如：商户数据量大，单独加机器）</td>
+                    <td>❌ 微服务架构扩展性更强</td>
+                </tr>
+                <tr>
+                    <td><strong>故障影响</strong></td>
+                    <td>故障影响所有业务</td>
+                    <td>故障只影响商户功能，不影响其他服务（如：IM、视频）</td>
+                    <td>❌ 微服务故障隔离更好</td>
+                </tr>
+                <tr>
+                    <td><strong>技术选型</strong></td>
+                    <td>统一技术栈（如：都用MySQL）</td>
+                    <td>可选不同技术（如：商户用MySQL，日志用MongoDB，视频用OSS）</td>
+                    <td>❌ 微服务技术选型更灵活</td>
+                </tr>
+                <tr>
+                    <td><strong>部署方式</strong></td>
+                    <td>单体应用，部署在一起</td>
+                    <td>独立部署（Docker容器），独立扩缩容</td>
+                    <td>❌ 微服务部署更灵活</td>
+                </tr>
+            </table>
+
+            <h4>核心区别总结</h4>
+            <p><strong>1. 数据隔离（最重要）：</strong></p>
+            <ul>
+                <li><strong>主流程：</strong>所有业务共享同一个Redis和DB，不同业务的数据混在一起（如：订单数据、用户数据、商户数据都在同一个DB）</li>
+                <li><strong>商户服务：</strong>独占自己的Redis和DB，数据完全隔离。即使日志服务被删除所有数据，也不会影响商户服务</li>
+            </ul>
+            <p><strong>2. 扩展性：</strong></p>
+            <ul>
+                <li><strong>主流程：</strong>如果订单数据量大，需要分库分表，会影响所有业务</li>
+                <li><strong>商户服务：</strong>如果商户数据量大，只对商户服务分库分表，不影响其他服务</li>
+            </ul>
+            <p><strong>3. 故障隔离：</strong></p>
+            <ul>
+                <li><strong>主流程：</strong>DB故障，所有业务都不可用</li>
+                <li><strong>商户服务：</strong>商户DB故障，只影响商户功能，IM、视频、订单等其他服务正常运行</li>
+            </ul>
+            <p><strong>相同点：</strong></p>
+            <ul>
+                <li><strong>都使用Redis作为缓存层：</strong>先查Redis，未命中再查DB，查询后更新Redis</li>
+                <li><strong>都使用DB作为持久化层：</strong>最终数据都存储在DB，保证数据不丢失</li>
+                <li><strong>都使用分布式锁保证并发安全：</strong>通过Redis SETNX实现锁机制</li>
+                <li><strong>都依赖Redis哨兵保证高可用：</strong>Redis主节点故障，哨兵自动切换</li>
+                <li><strong>都使用事务保证数据一致性：</strong>DB操作使用事务（ACID）</li>
+            </ul>
+
+            <h4>商户管理服务的完整技术栈</h4>
+            <div class="module">
+                <strong>缓存层（Redis）：</strong>
+                <ul>
+                    <li>商户基本信息：merchant:info:{商户ID}（TTL=30分钟）</li>
+                    <li>商户余额：merchant:balance:{商户ID}（实时更新，不设置TTL）</li>
+                    <li>今日订单数：merchant:orders:today:{商户ID}（每天凌晨清零）</li>
+                    <li>分布式锁：lock:merchant:balance:{商户ID}、lock:merchant:refund:{商户ID}</li>
+                </ul>
+            </div>
+            <div class="module">
+                <strong>持久化层（MySQL）：</strong>
+                <ul>
+                    <li>商户表（merchant）：商户ID、名称、手机号、邮箱、状态</li>
+                    <li>商户账户表（merchant_account）：商户ID、余额、冻结金额、创建时间</li>
+                    <li>交易流水表（transaction_log）：流水ID、商户ID、订单ID、金额、类型（入账/出账）、时间</li>
+                    <li>结算记录表（settlement_record）：结算ID、商户ID、结算金额、结算时间、状态</li>
+                </ul>
+            </div>
+            <div class="module">
+                <strong>消息队列（Kafka/RabbitMQ）：</strong>
+                <ul>
+                    <li>订阅主题：order.created（订单创建）、order.paid（订单支付）、order.refunded（订单退款）</li>
+                    <li>发布主题（如果有）：merchant.settlement（商户结算完成）</li>
+                </ul>
+            </div>
+            <div class="module">
+                <strong>外部服务：</strong>
+                <ul>
+                    <li>短信网关：发送订单通知短信</li>
+                    <li>推送服务：发送App推送通知</li>
+                    <li>支付网关：查询订单支付状态、处理退款</li>
+                </ul>
+            </div>
+
+            <h4>性能优化技巧</h4>
+            <ul>
+                <li><strong>Redis缓存预热：</strong>服务启动时，将热点商户数据加载到Redis</li>
+                <li><strong>Redis Pipeline：</strong>批量查询多个商户信息时，使用Pipeline减少网络往返</li>
+                <li><strong>DB读写分离：</strong>查询走从库，更新走主库</li>
+                <li><strong>DB连接池：</strong>使用连接池（如：HikariCP），避免频繁创建连接</li>
+                <li><strong>异步通知：</strong>余额更新成功后，异步发送短信和App推送（不阻塞主流程）</li>
+            </ul>
         </div>
     </div>
 
