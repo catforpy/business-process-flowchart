@@ -144,11 +144,24 @@
                 W --> Y[可查询冷DB]
                 U --> Z[事务保护]
                 V --> Z
-                P --> MQ[消息队列<br/>异步解耦]
+                P --> MQ[消息队列<br/>异步解耦<br/>事件总线]
                 Q --> MQ
-                MQ --> MQ1[日志服务]
-                MQ --> MQ2[统计服务]
-                MQ --> MQ3[通知服务]
+                MQ -.事件分发.-> MQ1[日志服务]
+                MQ -.事件分发.-> MQ2[统计服务]
+                MQ -.事件分发.-> MQ3[通知服务]
+                MQ -.事件分发.-> LOGIN[登录认证服务]
+                MQ -.事件分发.-> IM[即时通讯服务]
+                MQ -.事件分发.-> VIDEO[视频服务]
+                MQ -.事件分发.-> ORDER[商品订单服务]
+                MQ -.事件分发.-> CS[客服服务]
+                MQ -.事件分发.-> MERCHANT[商户管理服务]
+
+                LOGIN --> LOGIN_DB[(登录服务<br/>Redis+DB)]
+                IM --> IM_DB[(即时通讯<br/>Redis+DB)]
+                VIDEO --> VIDEO_DB[(视频服务<br/>Redis+DB)]
+                ORDER --> ORDER_DB[(订单服务<br/>Redis+DB)]
+                CS --> CS_DB[(客服服务<br/>Redis+DB)]
+                MERCHANT --> MERCHANT_DB[(商户管理<br/>Redis+DB)]
                 I -.监控.-> AA[Redis哨兵监控<br/>主从节点健康]
                 AA -.自动故障转移.-> AB[Redis从节点提升主节点]
                 AB -.通知.-> I
@@ -718,6 +731,235 @@ check interval=3000 rise=2 fall=3 timeout=1000;
             <p><strong>告警级别：</strong>P0严重（系统不可用，立即处理）、P1重要（核心功能异常，快速处理）、P2一般（非核心功能异常）、P4提示（性能下降，需要关注）</p>
             <p><strong>告警规则示例：</strong>CPU>80%持续5分钟、错误率>5%、响应时间P99>2秒、QPS突然下降50%</p>
             <p><strong>告警收敛策略：</strong>时间窗口（相同告警N分钟内只发一次）、告警升级（P4未确认自动升级为P2）、告警聚合（多实例相同告警合并）、静默期（维护期间屏蔽）</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>9. 事件驱动架构与微服务解耦</h2>
+        <div class="step" onclick="toggleDetails('event-driven')">点击查看详情</div>
+        <div id="event-driven" class="details">
+            <h3>消息队列作为事件总线</h3>
+            <p><strong>核心思想：</strong>通过消息队列（MQ）作为事件总线（Event Bus），将各个微服务完全解耦。业务服务只需发送事件消息到MQ，不需要知道有哪些服务订阅了这个事件。各个订阅服务独立从MQ消费消息，互不影响，实现真正的松耦合架构。</p>
+
+            <h4>为什么需要事件驱动架构</h4>
+            <p><strong>传统同步调用的问题：</strong></p>
+            <ul>
+                <li><strong>紧耦合：</strong>服务A调用服务B，必须知道服务B的地址、接口格式，如果服务B故障，服务A也受影响</li>
+                <li><strong>性能差：</strong>服务A需要等待服务B返回结果才能继续，总耗时 = 服务A耗时 + 服务B耗时 + 网络耗时</li>
+                <li><strong>扩展困难：</strong>新增一个服务C需要消费服务A的数据，需要修改服务A的代码，增加调用服务C的逻辑</li>
+                <li><strong>级联故障：</strong>服务B故障可能导致服务A阻塞，最终导致整个系统雪崩</li>
+            </ul>
+            <p><strong>事件驱动架构的优势：</strong></p>
+            <ul>
+                <li><strong>完全解耦：</strong>服务A只需发送事件到MQ，不需要知道有哪些服务消费，也不需要知道消费者的地址和接口</li>
+                <li><strong>高性能：</strong>服务A发送消息到MQ后立即返回，耗时&lt;10ms，不阻塞后续流程</li>
+                <li><strong>易扩展：</strong>新增服务只需订阅MQ消息即可，无需修改现有服务代码</li>
+                <li><strong>削峰填谷：</strong>高峰期消息堆积在MQ，低峰期消费，避免系统被压垮</li>
+                <li><strong>故障隔离：</strong>某个消费者故障不影响其他消费者，也不影响消息发送者</li>
+            </ul>
+
+            <h4>典型事件流程示例</h4>
+            <p><strong>场景：用户下单后的事件分发</strong></p>
+            <ol>
+                <li><strong>订单服务</strong>完成订单创建，将订单信息写入DB，更新Redis缓存</li>
+                <li><strong>订单服务</strong>发送"订单创建成功"事件到MQ（消息包含：订单ID、用户ID、商品ID、金额、时间戳）</li>
+                <li><strong>MQ作为事件总线</strong>，将消息分发给所有订阅了"订单创建成功"事件的服务：
+                    <ul>
+                        <li><strong>通知服务：</strong>发送订单确认短信、邮件、App推送</li>
+                        <li><strong>积分服务：</strong>给用户增加积分（消费金额 × 积分比例）</li>
+                        <li><strong>客服服务：</strong>创建工单记录，准备售后支持</li>
+                        <li><strong>商户管理服务：</strong>通知商户有新订单，发送订单详情</li>
+                        <li><strong>日志服务：</strong>记录订单创建日志，用于审计和问题追踪</li>
+                        <li><strong>统计服务：</strong>更新销售统计、用户消费统计</li>
+                    </ul>
+                </li>
+                <li>所有服务<strong>并行处理</strong>，互不影响，总耗时 = max(各服务耗时)，而非sum(各服务耗时)</li>
+            </ol>
+
+            <h4>各个微服务的事件订阅</h4>
+            <div class="module">
+                <strong>1. 登录认证服务（Login Service）</strong>
+                <p><strong>订阅事件：</strong>用户注册成功、密码修改成功、手机号变更</p>
+                <p><strong>处理逻辑：</strong>
+                    <ul>
+                        <li>用户注册 → 发送欢迎短信/邮件</li>
+                        <li>密码修改 → 发送安全通知（短信/邮件）</li>
+                        <li>手机号变更 → 重新验证新手机号</li>
+                    </ul>
+                </p>
+                <p><strong>自身数据存储：</strong>用户登录信息（Redis缓存Token）、用户认证历史（DB记录登录日志）</p>
+            </div>
+
+            <div class="module">
+                <strong>2. 即时通讯服务（IM Service）</strong>
+                <p><strong>订阅事件：</strong>用户注册成功、订单创建成功、订单状态变更、客服消息</p>
+                <p><strong>处理逻辑：</strong>
+                    <ul>
+                        <li>用户注册 → 创建IM账号，分配好友列表</li>
+                        <li>订单创建 → 推送订单通知到用户App</li>
+                        <li>订单状态变更 → 推送物流信息、发货通知</li>
+                        <li>客服消息 → 实时推送给用户和客服</li>
+                    </ul>
+                </p>
+                <p><strong>自身数据存储：</strong>用户会话信息（Redis在线状态）、聊天消息记录（DB存储历史消息）、离线消息（Redis缓存未读消息）</p>
+            </div>
+
+            <div class="module">
+                <strong>3. 视频服务（Video Service）</strong>
+                <p><strong>订阅事件：</strong>用户注册成功、视频上传完成、视频审核通过</p>
+                <p><strong>处理逻辑：</strong>
+                    <ul>
+                        <li>用户注册 → 初始化用户视频空间，分配默认权限</li>
+                        <li>视频上传 → 触发转码（标清、高清、超清），生成缩略图</li>
+                        <li>审核通过 → 更新视频状态为"已发布"，通知用户</li>
+                    </ul>
+                </p>
+                <p><strong>自身数据存储：</strong>视频元信息（Redis缓存视频基本信息）、视频文件（对象存储OSS）、播放记录（DB记录播放历史）</p>
+            </div>
+
+            <div class="module">
+                <strong>4. 商品订单服务（Order Service）</strong>
+                <p><strong>订阅事件：</strong>订单创建成功、订单支付成功、订单取消、订单退款</p>
+                <p><strong>处理逻辑：</strong>
+                    <ul>
+                        <li>订单创建 → 扣减库存（分布式锁保证），生成订单号</li>
+                        <li>支付成功 → 更新订单状态为"已支付"，通知发货服务</li>
+                        <li>订单取消 → 恢复库存，处理退款</li>
+                    </ul>
+                </p>
+                <p><strong>自身数据存储：</strong>订单信息（Redis缓存热点订单）、订单详情（DB存储完整订单）、库存信息（Redis缓存实时库存）</p>
+            </div>
+
+            <div class="module">
+                <strong>5. 客服服务（Customer Service）</strong>
+                <p><strong>订阅事件：</strong>订单创建成功、用户投诉、退款申请、评价提交</p>
+                <p><strong>处理逻辑：</strong>
+                    <ul>
+                        <li>订单创建 → 自动创建工单，准备售后支持</li>
+                        <li>用户投诉 → 分配客服人员，优先处理</li>
+                        <li>退款申请 → 触发退款流程，通知财务</li>
+                    </ul>
+                </p>
+                <p><strong>自身数据存储：</strong>工单信息（Redis缓存待处理工单）、聊天记录（DB存储客服对话）、常见问题（Redis缓存FAQ）</p>
+            </div>
+
+            <div class="module">
+                <strong>6. 商户管理服务（Merchant Service）</strong>
+                <p><strong>订阅事件：</strong>订单创建成功、订单支付成功、商户入驻申请</p>
+                <p><strong>处理逻辑：</strong>
+                    <ul>
+                        <li>订单创建 → 推送新订单通知到商户App，发送短信提醒</li>
+                        <li>支付成功 → 更新商户账户余额，生成结算单</li>
+                        <li>入驻申请 → 触发审核流程，通知运营人员</li>
+                    </ul>
+                </p>
+                <p><strong>自身数据存储：</strong>商户信息（Redis缓存商户基本信息）、账户余额（DB+Redis双重保障）、订单统计（DB存储经营数据）</p>
+            </div>
+
+            <div class="module">
+                <strong>7. 日志服务（Log Service）</strong>
+                <p><strong>订阅事件：</strong>所有业务事件（用户行为、订单变更、支付记录等）</p>
+                <p><strong>处理逻辑：</strong>
+                    <ul>
+                        <li>接收所有服务发送的事件消息</li>
+                        <li>按照日志级别（INFO/WARN/ERROR）分类存储</li>
+                        <li>支持按时间、用户ID、订单ID等维度查询</li>
+                    </ul>
+                </p>
+                <p><strong>自身数据存储：</strong>日志索引（Redis缓存近期日志）、日志详情（Elasticsearch存储历史日志）</p>
+            </div>
+
+            <div class="module">
+                <strong>8. 统计服务（Statistics Service）</strong>
+                <p><strong>订阅事件：</strong>所有业务事件（订单、支付、用户行为等）</p>
+                <p><strong>处理逻辑：</strong>
+                    <ul>
+                        <li>实时统计：当前在线人数、今日订单数、今日GMV</li>
+                        <li>离线统计：用户增长趋势、商品销售排行、用户消费画像</li>
+                        <li>生成报表：日报、周报、月报，支持可视化展示</li>
+                    </ul>
+                </p>
+                <p><strong>自身数据存储：</strong>实时统计数据（Redis缓存热点指标）、历史统计数据（DB存储时序数据）、统计结果（预聚合，提升查询性能）</p>
+            </div>
+
+            <div class="module">
+                <strong>9. 通知服务（Notification Service）</strong>
+                <p><strong>订阅事件：</strong>所有需要通知用户的事件（订单、支付、物流、促销等）</p>
+                <p><strong>处理逻辑：</strong>
+                    <ul>
+                        <li>短信通知：验证码、订单状态、营销短信</li>
+                        <li>邮件通知：账单、报表、系统公告</li>
+                        <li>App推送：订单消息、活动通知、系统消息</li>
+                        <li>站内信：用户通知、客服回复</li>
+                    </ul>
+                </p>
+                <p><strong>自身数据存储：</strong>通知记录（DB存储发送历史）、发送状态（Redis缓存待发送队列）、用户偏好（DB存储用户通知设置）</p>
+            </div>
+
+            <h4>每个微服务内部的Redis-DB架构</h4>
+            <p><strong>重要原则：</strong>每个微服务都有自己独立的Redis和DB实例，不共享数据存储。服务间通过MQ交换数据，而非直接访问对方的DB。这是微服务架构的核心原则：每个服务独占自己的数据。</p>
+            <p><strong>为什么每个服务需要独立的Redis+DB：</strong></p>
+            <ul>
+                <li><strong>数据隔离：</strong>服务间的数据完全隔离，避免误操作（如：日志服务误删订单数据）</li>
+                <li><strong>独立扩展：</strong>每个服务可以根据自己的负载独立扩展（如：订单服务数据量大，分100个表；日志服务数据量更大，分1000个表）</li>
+                <li><strong>技术选型灵活：</strong>不同服务可以选择不同的存储（如：订单服务用MySQL，日志服务用MongoDB，视频服务用对象存储）</li>
+                <li><strong>故障隔离：</strong>某个服务的DB故障不影响其他服务</li>
+            </ul>
+            <p><strong>典型微服务数据存储架构：</strong></p>
+            <table border="1" cellpadding="10" style="border-collapse: collapse; width: 100%; margin-top: 10px;">
+                <tr style="background-color: #f0f0f0;">
+                    <th><strong>微服务</strong></th>
+                    <th><strong>Redis存储内容</strong></th>
+                    <th><strong>DB存储内容</strong></th>
+                    <th><strong>数据量级</strong></th>
+                </tr>
+                <tr>
+                    <td>登录认证服务</td>
+                    <td>Token（30分钟TTL）、用户登录状态、验证码（5分钟TTL）</td>
+                    <td>用户基本信息、登录历史、认证日志</td>
+                    <td>百万级用户</td>
+                </tr>
+                <tr>
+                    <td>即时通讯服务</td>
+                    <td>在线用户列表、未读消息数、WebSocket连接信息</td>
+                    <td>聊天消息记录、群组信息、好友关系</td>
+                    <td>亿级消息</td>
+                </tr>
+                <tr>
+                    <td>视频服务</td>
+                    <td>视频基本信息（标题、时长、播放数）、热门视频排行榜</td>
+                    <td>视频元信息、转码记录、播放历史</td>
+                    <td>百万级视频</td>
+                </tr>
+                <tr>
+                    <td>商品订单服务</td>
+                    <td>热点订单信息（最近7天）、实时库存、购物车数据</td>
+                    <td>订单详情、商品信息、交易流水</td>
+                    <td>亿级订单</td>
+                </tr>
+                <tr>
+                    <td>客服服务</td>
+                    <td>待处理工单队列、客服在线状态、常见问题FAQ</td>
+                    <td>工单详情、聊天记录、评价信息</td>
+                    <td>百万级工单</td>
+                </tr>
+                <tr>
+                    <td>商户管理服务</td>
+                    <td>商户基本信息、账户余额（实时）、今日订单数</td>
+                    <td>商户详细信息、结算记录、交易明细</td>
+                    <td>十万级商户</td>
+                </tr>
+            </table>
+
+            <h4>事件驱动架构的业务价值</h4>
+            <ul>
+                <li><strong>完全解耦：</strong>服务间通过MQ异步通信，无需知道对方的存在，新增服务只需订阅MQ消息</li>
+                <li><strong>高性能：</strong>主流程快速返回（&lt;10ms），耗时操作异步处理，提升系统吞吐量10倍+</li>
+                <li><strong>高可用：</strong>某个消费者故障不影响其他消费者，也不影响消息发送者，故障隔离</li>
+                <li><strong>易扩展：</strong>新增功能只需新增服务并订阅MQ消息，无需修改现有代码，符合开闭原则</li>
+                <li><strong>削峰填谷：</strong>高峰期消息堆积在MQ（支持百万级消息堆积），低峰期慢慢消费，避免系统压垮</li>
+                <li><strong>数据最终一致性：</strong>通过MQ保证最终一致性（即使某个服务暂时故障，恢复后可继续消费消息）</li>
+            </ul>
         </div>
     </div>
 
