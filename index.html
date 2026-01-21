@@ -97,16 +97,13 @@
                 E2 --> F
                 E3 --> F
                 F --> G[业务模块: 操作处理]
-                G --> H{读/写操作}
+                G --> {Need DB operation}
+                {Need DB operation} -->|Yes| H{读/写操作}
+                {Need DB operation} -->|No| X[返回Nginx网关]
+                X --> C
                 H -->|读| I[Redis查询]
                 I -->|命中| J[返回数据]
-                I -->|未命中| K[数据库查询]
-                K --> L[更新Redis]
-                L --> J
-                F --> G[业务模块: 操作处理]
-                G --> H{读/写操作}
-                H -->|读| I[Redis查询]
-                I -->|命中| J[返回数据]
+                J --> G
                 I -->|未命中| K[数据库查询]
                 K --> L[更新Redis]
                 L --> J
@@ -378,6 +375,48 @@
                         <li><strong>阈值策略：</strong>号段使用率超过75%时异步申请新号段。</li>
                     </ul>
                     <p><strong>核心机制：</strong>一张表管理所有业务的ID生成，支持扩展枚举(IdTypeEnum)添加新业务类型。</p>
+                    <p><strong>数据隔离方式：</strong></p>
+                    <table border="1" style="border-collapse: collapse; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>id</th>
+                                <th>remark</th>
+                                <th>step</th>
+                                <th>current_start</th>
+                                <th>next_threshold</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>1</td>
+                                <td>用户ID</td>
+                                <td>1000</td>
+                                <td>1000</td>
+                                <td>2000</td>
+                            </tr>
+                            <tr>
+                                <td>2</td>
+                                <td>订单ID</td>
+                                <td>5000</td>
+                                <td>10000</td>
+                                <td>15000</td>
+                            </tr>
+                            <tr>
+                                <td>3</td>
+                                <td>礼物ID</td>
+                                <td>10000</td>
+                                <td>100000</td>
+                                <td>110000</td>
+                            </tr>
+                            <tr>
+                                <td>4</td>
+                                <td>房间ID</td>
+                                <td>1000</td>
+                                <td>1000000</td>
+                                <td>1001000</td>
+                            </tr>
+                        </tbody>
+                    </table>
                     <p><strong>示例：</strong>用户ID从1开始，订单ID从10000开始，各有独立号段和步长配置。</p>
                 `;
             } else if (type === 'business-module') {
