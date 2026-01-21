@@ -1,0 +1,78 @@
+            } else if (type === 'backend') {
+                content = `
+                    <span class="close-btn" onclick="closeTooltip()">×</span>
+                    <h4>后端服务高可用架构</h4>
+                    <p><strong>核心主后端服务 & 核心备用后端服务：</strong></p>
+                    <ul>
+                        <li><strong>为什么需要主备架构：</strong>
+                            <ul>
+                                <li>保证服务高可用性，避免单点故障</li>
+                                <li>主服务故障时，备用服务能立即接管，确保业务连续性</li>
+                                <li>支持主服务维护升级时，备用服务提供服务</li>
+                            </ul>
+                        </li>
+                        <li><strong>数据同步机制：</strong>
+                            <ul>
+                                <li><strong>共享存储：</strong>主备服务连接同一个数据库和Redis，数据天然一致</li>
+                                <li><strong>会话同步：</strong>用户会话信息存储在Redis中，主备切换不影响用户登录状态</li>
+                                <li><strong>无状态设计：</strong>后端服务设计为无状态，所有数据存储在数据库或缓存中</li>
+                            </ul>
+                        </li>
+                        <li><strong>工作模式：</strong>
+                            <ul>
+                                <li>正常情况下，主服务处理所有请求</li>
+                                <li>Nginx健康检查发现主服务故障时，自动切换到备用服务</li>
+                                <li>主服务恢复后，可以重新加入负载均衡池</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p><strong>拆分功能主后端服务 & 拆分功能备用后端服务：</strong></p>
+                    <ul>
+                        <li><strong>为什么要拆分功能：</strong>
+                            <ul>
+                                <li><strong>资源隔离：</strong>某些功能（如AI推理、视频处理）占用大量CPU/内存，影响核心业务性能</li>
+                                <li><strong>性能优化：</strong>将高资源占用的功能独立部署，避免影响核心业务响应速度</li>
+                                <li><strong>独立扩展：</strong>可以根据业务特点独立扩容，提高资源利用率</li>
+                                <li><strong>技术栈差异：</strong>某些功能可能需要特殊的硬件（如GPU）或软件环境</li>
+                            </ul>
+                        </li>
+                        <li><strong>哪些功能需要拆分：</strong>
+                            <ul>
+                                <li><strong>AI相关：</strong>AI推理、模型训练、图像识别、语音识别、自然语言处理</li>
+                                <li><strong>媒体处理：</strong>视频转码、图片压缩、文件转换</li>
+                                <li><strong>数据分析：</strong>报表生成、数据统计、大数据分析</li>
+                                <li><strong>第三方集成：</strong>支付接口、短信服务、邮件服务等耗时操作</li>
+                                <li><strong>定时任务：</strong>数据同步、定时清理、数据备份等</li>
+                            </ul>
+                        </li>
+                        <li><strong>数据同步方式：</strong>
+                            <ul>
+                                <li><strong>共享数据库：</strong>拆分的服务连接同一个数据库，保证数据一致性</li>
+                                <li><strong>消息队列：</strong>通过消息队列（如Kafka、RabbitMQ）进行异步通信</li>
+                                <li><strong>API调用：</strong>核心服务通过API调用拆分功能服务</li>
+                                <li><strong>事件驱动：</strong>通过事件总线进行服务间通信</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p><strong>Nginx配置示例：</strong></p>
+                    <pre style="background-color: #f4f4f4; padding: 10px; border-radius: 5px; font-size: 12px;">
+# 核心业务服务（主备架构）
+upstream backend_core {
+    server 192.168.2.10:8080 max_fails=3 fail_timeout=30s;
+    server 192.168.2.11:8080 backup;
+}
+
+# AI推理服务（功能拆分）
+upstream backend_ai {
+    server 192.168.2.20:8080 max_fails=3 fail_timeout=30s;
+    server 192.168.2.21:8080 backup;
+}
+
+# 视频处理服务（功能拆分）
+upstream backend_video {
+    server 192.168.2.30:8080 max_fails=3 fail_timeout=30s;
+    server 192.168.2.31:8080 backup;
+}
+                    </pre>
+                    <p><strong>优势：</strong>提高可用性、性能和资源利用率，实现应用层的双重高可用。</p>
+                `;

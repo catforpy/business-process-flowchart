@@ -320,76 +320,83 @@ check interval=3000 rise=2 fall=3 timeout=1000;
                 const svg = document.querySelector('.mermaid svg');
                 console.log('SVG found:', svg);
                 if (svg) {
-                    // 定义节点类型映射
-                    const nodeTypes = [
-                        { text: 'HTTP', type: 'HTTP' },
-                        { text: 'WebSocket', type: 'WebSocket' },
-                        { text: '前端App/Web', type: 'frontend' },
-                        { text: '连接类型', type: 'connection-type' },
-                        { text: '核心主后端服务', type: 'backend' },
-                        { text: '核心备用后端服务', type: 'backend' },
-                        { text: '拆分功能主后端服务', type: 'backend' },
-                        { text: '拆分功能备用后端服务', type: 'backend' },
-                        { text: '用户中台模块: 认证校验', type: 'user-middle-tier' },
-                        { text: '业务模块: 操作处理', type: 'business-module' },
-                        { text: '需要数据库操作', type: 'need-db' },
-                        { text: '读/写操作', type: 'read-write' },
-                        { text: '返回Nginx网关', type: 'return-nginx' },
-                        { text: '数据类型', type: 'data-type' },
-                        { text: 'Redis哨兵集群', type: 'redis-sentinel' },
-                        { text: 'Redis哨兵监控', type: 'redis-sentinel' },
-                        { text: 'Redis主节点健康', type: 'redis-sentinel' },
-                        { text: 'Redis主节点查询', type: 'redis-master' },
-                        { text: 'Redis主节点检查', type: 'redis-master' },
-                        { text: 'Redis从节点提升主节点', type: 'redis-sentinel' },
-                        { text: '后端服务健康监控', type: 'health-monitor' },
-                        { text: 'Nginx自动切换备用服务', type: 'nginx-switch' },
-                        { text: 'Nginx网关', type: 'nginx' },
-                        { text: '独立热数据服务器', type: 'hot-data-server' },
-                        { text: '集合冷数据服务器', type: 'cold-data-server' },
-                        { text: '冷数据备份:', type: 'cold-backup' },
-                        { text: '可查询冷DB', type: 'cold-db' },
-                        { text: '事务保护', type: 'transaction' },
-                        { text: '定时刷新Redis-DB', type: 'redis-refresh' },
-                        { text: '分库分表处理', type: 'sharding' }
-                    ];
+                    const texts = svg.querySelectorAll('text');
+                    const tspans = svg.querySelectorAll('tspan');
+                    const gs = svg.querySelectorAll('g');
+                    console.log('Texts found:', texts.length);
+                    console.log('Tspans found:', tspans.length);
+                    console.log('Gs found:', gs.length);
+                    gs.forEach(g => {
+                        const text = g.textContent.trim();
+                        console.log('Checking node:', text);
 
-                    // 查找所有可能包含文本的元素
-                    const allElements = svg.querySelectorAll('*');
-                    console.log('Total elements found:', allElements.length);
+                        // 精确匹配各个节点 - 注意判断顺序，精确匹配放在前面
+                        if (text === 'HTTP' ||
+                            text === 'WebSocket' ||
+                            text === '前端App/Web' ||
+                            text === '连接类型' ||
+                            text === '核心主后端服务' ||
+                            text === '核心备用后端服务' ||
+                            text === '拆分功能主后端服务' ||
+                            text === '拆分功能备用后端服务' ||
+                            text === '用户中台模块: 认证校验' ||
+                            text === '业务模块: 操作处理' ||
+                            text === '需要数据库操作' ||
+                            text === '读/写操作' ||
+                            text === '返回Nginx网关' ||
+                            text === '数据类型' ||
+                            text.includes('Redis哨兵集群') ||
+                            text.includes('Redis哨兵监控') ||
+                            text.includes('Redis主节点查询') ||
+                            text.includes('Redis主节点检查') ||
+                            text.includes('Redis哨兵') ||
+                            text.includes('后端服务健康监控') ||
+                            text.includes('Nginx网关')) {
 
-                    // 为每个节点添加点击事件
-                    allElements.forEach(element => {
-                        const textContent = element.textContent ? element.textContent.trim() : '';
+                            console.log('Matched node:', text);
+                            g.style.cursor = 'pointer';
+                            g.addEventListener('click', function() {
+                                let type;
 
-                        // 检查是否匹配我们定义的节点
-                        for (let nodeType of nodeTypes) {
-                            if (textContent === nodeType.text || textContent.includes(nodeType.text)) {
-                                console.log('Matched:', textContent, '->', nodeType.type);
+                                // 按照精确度从高到低判断
+                                if (text === 'HTTP') type = 'HTTP';
+                                else if (text === 'WebSocket') type = 'WebSocket';
+                                else if (text === '连接类型') type = 'connection-type';
+                                else if (text === '前端App/Web') type = 'frontend';
+                                else if (text === '核心主后端服务' || text === '核心备用后端服务' ||
+                                        text === '拆分功能主后端服务' || text === '拆分功能备用后端服务') type = 'backend';
+                                else if (text === '用户中台模块: 认证校验') type = 'user-middle-tier';
+                                else if (text === '业务模块: 操作处理') type = 'business-module';
+                                else if (text === '需要数据库操作') type = 'need-db';
+                                else if (text === '读/写操作') type = 'read-write';
+                                else if (text === '返回Nginx网关') type = 'return-nginx';
+                                else if (text === '数据类型') type = 'data-type';
+                                else if (text.includes('Redis哨兵集群') || text.includes('Redis哨兵监控')) type = 'redis-sentinel';
+                                else if (text.includes('Redis主节点查询') || text.includes('Redis主节点检查')) type = 'redis-master';
+                                else if (text.includes('后端服务健康监控')) type = 'health-monitor';
+                                else if (text.includes('Nginx网关')) type = 'nginx';
 
-                                // 设置鼠标样式
-                                element.style.cursor = 'pointer';
-
-                                // 添加点击事件
-                                element.addEventListener('click', function(e) {
-                                    e.stopPropagation();
-                                    console.log('Clicked:', nodeType.type, 'for text:', textContent);
-                                    toggleTooltip(element, nodeType.type);
-                                });
-
-                                // 改变颜色提示可点击
-                                if (element.tagName === 'text' || element.tagName === 'tspan') {
-                                    element.style.fill = '#007bff';
-                                }
-
-                                break; // 找到匹配就跳出循环
-                            }
+                                console.log('Clicked type:', type, 'for text:', text);
+                                toggleTooltip(this, type);
+                            });
                         }
                     });
-
-                    console.log('Tooltip setup completed');
+                    [...texts, ...tspans].forEach(text => {
+                        const content = text.textContent.trim();
+                        console.log('Text/Tspan content:', content);
+                        if (content.includes('HTTP') || content.includes('WebSocket')) {
+                            console.log('Match found for:', content);
+                            text.style.cursor = 'pointer';
+                            text.style.fill = '#007bff'; // 蓝色表示可点击
+                            text.addEventListener('click', function() {
+                                const type = content.includes('HTTP') ? 'HTTP' : 'WebSocket';
+                                console.log('Clicked:', type);
+                                toggleTooltip(this, type);
+                            });
+                        }
+                    });
                 }
-            }, 3000); // 增加延迟到3秒，确保Mermaid完全渲染
+            }, 2000); // 增加延迟到2秒
         });
 
         let currentTooltip = null;
@@ -418,103 +425,34 @@ check interval=3000 rise=2 fall=3 timeout=1000;
                 content = `
                     <span class="close-btn" onclick="closeTooltip()">×</span>
                     <h4>HTTP连接说明</h4>
-                    <p><strong>定义：</strong>超文本传输协议（HyperText Transfer Protocol），用于客户端和服务器之间的请求-响应通信。</p>
-                    <p><strong>主要功能：</strong></p>
-                    <ul>
-                        <li><strong>请求-响应模式：</strong>客户端发送请求，服务器返回响应</li>
-                        <li><strong>无状态协议：</strong>每次请求独立，不保留上下文</li>
-                        <li><strong>灵活可扩展：</strong>通过请求头传递元信息</li>
-                        <li><strong>支持多种方法：</strong>GET、POST、PUT、DELETE等</li>
-                    </ul>
-                    <p><strong>重要概念：</strong></p>
-                    <ul>
-                        <li><strong>无状态：</strong>服务器不保存客户端状态，需要通过Cookie/Session维持会话</li>
-                        <li><strong>连接复用：</strong>HTTP/1.1支持keep-alive，减少连接建立开销</li>
-                        <li><strong>缓存机制：</strong>支持强缓存和协商缓存，提高性能</li>
-                    </ul>
-                    <p><strong>应用场景：</strong></p>
-                    <ul>
-                        <li><strong>用户登录注册：</strong>表单提交、身份验证</li>
-                        <li><strong>数据查询：</strong>获取列表、详情、搜索等</li>
-                        <li><strong>数据提交：</strong>创建、更新、删除资源</li>
-                        <li><strong>文件上传：</strong>图片、视频、文档上传</li>
-                        <li><strong>API调用：</strong>RESTful API、GraphQL等</li>
-                        <li><strong>页面加载：</strong>HTML、CSS、JS等静态资源加载</li>
-                    </ul>
-                    <p><strong>优势：</strong>广泛支持、易缓存、简单易用、防火墙友好。</p>
-                    <p><strong>劣势：</strong>服务器无法主动推送、每次请求携带头部开销、不适合实时通信。</p>
+                    <p><strong>定义：</strong>超文本传输协议，用于客户端和服务器之间的请求-响应通信。</p>
+                    <p><strong>特点：</strong>无状态、简单、易扩展。</p>
+                    <p><strong>案例：</strong>用户登录、提交表单、API调用。</p>
+                    <p><strong>优势：</strong>广泛支持，易缓存。</p>
+                    <p><strong>劣势：</strong>不适合实时通信。</p>
                 `;
             } else if (type === 'WebSocket') {
                 content = `
                     <span class="close-btn" onclick="closeTooltip()">×</span>
                     <h4>WebSocket连接说明</h4>
-                    <p><strong>定义：</strong>全双工通信协议，在单个TCP连接上提供全双工、双向通信通道，允许服务器主动推送数据给客户端。</p>
-                    <p><strong>主要功能：</strong></p>
-                    <ul>
-                        <li><strong>持久连接：</strong>建立连接后保持打开状态，避免重复握手</li>
-                        <li><strong>双向通信：</strong>客户端和服务器可以随时发送消息</li>
-                        <li><strong>低延迟：</strong>连接建立后数据传输实时，无需HTTP请求头开销</li>
-                        <li><strong>轻量级：</strong>数据帧格式简单，开销小</li>
-                    </ul>
-                    <p><strong>重要概念：</strong></p>
-                    <ul>
-                        <li><strong>握手阶段：</strong>使用HTTP进行初始握手，升级为WebSocket协议</li>
-                        <li><strong>心跳机制：</strong>定期发送ping/pong帧保持连接活跃</li>
-                        <li><strong>连接状态：</strong>CONNECTING、OPEN、CLOSING、CLOSED</li>
-                        <li><strong>同源策略：</strong>WebSocket受同源策略限制，需要CORS支持跨域</li>
-                    </ul>
-                    <p><strong>应用场景：</strong></p>
-                    <ul>
-                        <li><strong>即时通讯：</strong>聊天室、私聊、群聊、消息推送</li>
-                        <li><strong>实时通知：</strong>系统消息、提醒通知、公告推送</li>
-                        <li><strong>在线游戏：</strong>多人对战、实时同步、位置更新</li>
-                        <li><strong>实时协作：</strong>在线文档、协同编辑、白板共享</li>
-                        <li><strong>数据监控：</strong>服务器监控、IoT设备状态、股票行情</li>
-                        <li><strong>直播互动：</strong>弹幕、礼物、点赞实时展示</li>
-                        <li><strong>位置服务：</strong>实时定位、路线导航、配送跟踪</li>
-                    </ul>
-                    <p><strong>优势：</strong>实时性强、服务器可主动推送、连接复用、延迟低。</p>
-                    <p><strong>劣势：</strong>实现相对复杂、无状态代理服务器支持差、连接管理需要考虑重连机制。</p>
+                    <p><strong>定义：</strong>全双工通信协议，允许服务器推送数据。</p>
+                    <p><strong>特点：</strong>持久连接、低延迟、双向。</p>
+                    <p><strong>案例：</strong>聊天、实时通知、游戏。</p>
+                    <p><strong>优势：</strong>实时性强。</p>
+                    <p><strong>劣势：</strong>实现复杂。</p>
                 `;
             } else if (type === 'frontend') {
                 content = `
                     <span class="close-btn" onclick="closeTooltip()">×</span>
-                    <h4>前端App/Web说明</h4>
-                    <p><strong>作用：</strong>用户交互界面，负责接收用户输入，展示数据，与后端服务器进行通信。</p>
-                    <p><strong>主要功能：</strong></p>
+                    <h4>前端App/Web准备数据说明</h4>
+                    <p><strong>基础校验数据：</strong></p>
                     <ul>
-                        <li><strong>用户交互：</strong>接收用户操作（点击、输入、滑动等）</li>
-                        <li><strong>数据展示：</strong>将后端返回的数据以可视化的方式呈现给用户</li>
-                        <li><strong>数据提交：</strong>收集用户输入的数据，发送到后端服务器</li>
-                        <li><strong>状态管理：</strong>管理应用状态（如登录状态、用户信息等）</li>
-                        <li><strong>本地缓存：</strong>缓存部分数据，提高用户体验</li>
+                        <li><strong>Token：</strong>根据用户ID生成，具有唯一性，用于身份验证。</li>
+                        <li><strong>Token位置：</strong>通常放在HTTP请求头（Header）中，如Authorization: Bearer <token>。不建议放在请求体（Data）中，以避免暴露。</li>
+                        <li><strong>其他必传数据：</strong>用户ID（用于关联）、时间戳（防止重放攻击）、请求签名（可选，用于额外安全）。</li>
                     </ul>
-                    <p><strong>基础校验数据准备：</strong></p>
-                    <ul>
-                        <li><strong>Token（令牌）：</strong>根据用户ID生成的唯一标识，用于身份验证和授权</li>
-                        <li><strong>Token位置：</strong>通常放在HTTP请求头（Header）中，如Authorization: Bearer <token></li>
-                        <li><strong>其他必传数据：</strong>
-                            <ul>
-                                <li>用户ID：用于关联和识别用户</li>
-                                <li>时间戳：防止重放攻击</li>
-                                <li>请求签名：可选，用于额外安全性验证</li>
-                            </ul>
-                        </li>
-                    </ul>
-                    <p><strong>业务数据准备：</strong></p>
-                    <ul>
-                        <li>表单数据（用户注册、信息修改等）</li>
-                        <li>查询参数（搜索关键词、筛选条件等）</li>
-                        <li>文件数据（头像上传、文档上传等）</li>
-                        <li>操作指令（点赞、关注、分享等）</li>
-                    </ul>
-                    <p><strong>技术栈：</strong></p>
-                    <ul>
-                        <li><strong>移动端：</strong>原生iOS、Android、React Native、Flutter</li>
-                        <li><strong>Web端：</strong>HTML、CSS、JavaScript、React、Vue、Angular</li>
-                        <li><strong>小程序：</strong>微信小程序、支付宝小程序等</li>
-                    </ul>
-                    <p><strong>注意事项：</strong>确保数据格式正确，敏感信息加密传输，做好错误处理和用户提示。</p>
+                    <p><strong>业务数据：</strong>根据具体操作上传，如表单数据、文件等（标识化处理）。</p>
+                    <p><strong>注意：</strong>确保数据格式正确，敏感信息加密传输。</p>
                 `;
             } else if (type === 'nginx') {
                 content = `
@@ -864,335 +802,6 @@ upstream backend {
 }
                     </pre>
                     <p><strong>优势：</strong>提高系统可用性，实现自动故障转移，减少人工干预。</p>
-                `;
-            } else if (type === 'nginx-switch') {
-                content = `
-                    <span class="close-btn" onclick="closeTooltip()">×</span>
-                    <h4>Nginx自动切换备用服务</h4>
-                    <p><strong>作用：</strong>当主后端服务故障时，Nginx自动将流量切换到备用服务，确保业务连续性。</p>
-                    <p><strong>工作原理：</strong></p>
-                    <ul>
-                        <li><strong>健康检查：</strong>Nginx定期向后端服务发送健康检查请求</li>
-                        <li><strong>失败计数：</strong>连续失败max_fails次后，标记服务为不健康</li>
-                        <li><strong>自动切换：</strong>主服务不健康时，自动将流量路由到备用服务</li>
-                        <li><strong>恢复检测：</strong>主服务恢复后，健康检查通过后重新加入负载均衡池</li>
-                    </ul>
-                    <p><strong>实现方式：</strong></p>
-                    <ul>
-                        <li><strong>被动健康检查（Nginx开源版）：</strong>
-                            <ul>
-                                <li>通过max_fails和fail_timeout参数配置</li>
-                                <li>max_fails=3：连续失败3次标记为不健康</li>
-                                <li>fail_timeout=30s：30秒后重新尝试连接</li>
-                                <li>backup标记：备用服务器只在工作服务器都不可用时才接收流量</li>
-                            </ul>
-                        </li>
-                        <li><strong>主动健康检查（Nginx Plus或第三方模块）：</strong>
-                            <ul>
-                                <li>定期发送健康检查请求到指定端点（如/health）</li>
-                                <li>可配置检查间隔、超时时间、成功/失败阈值</li>
-                                <li>更灵活、更精确的健康状态监控</li>
-                            </ul>
-                        </li>
-                    </ul>
-                    <p><strong>Nginx配置示例：</strong></p>
-                    <pre style="background-color: #f4f4f4; padding: 10px; border-radius: 5px; font-size: 12px;">
-upstream backend {
-    # 主服务
-    server 192.168.2.10:8080 max_fails=3 fail_timeout=30s;
-
-    # 备用服务
-    server 192.168.2.11:8080 backup;
-}
-
-# 主动健康检查（需要nginx_plus或第三方模块）
-check interval=5000 rise=2 fall=3 timeout=3000;
-                    </pre>
-                    <p><strong>切换流程：</strong></p>
-                    <ol>
-                        <li>Nginx检测到主服务连续失败3次</li>
-                        <li>将主服务标记为不健康（down）</li>
-                        <li>自动将新请求发送到备用服务</li>
-                        <li>30秒后定期尝试重新连接主服务</li>
-                        <li>主服务恢复后，重新加入负载均衡池</li>
-                    </ol>
-                    <p><strong>优势：</strong>实现自动故障转移，无需人工干预，提高系统可用性达到99.9%以上。</p>
-                `;
-            } else if (type === 'hot-data-server') {
-                content = `
-                    <span class="close-btn" onclick="closeTooltip()">×</span>
-                    <h4>独立热数据服务器</h4>
-                    <p><strong>定义：</strong>专门用于存储和管理频繁访问的"热数据"的高性能服务器。</p>
-                    <p><strong>主要功能：</strong></p>
-                    <ul>
-                        <li><strong>快速响应：</strong>使用高性能存储（SSD、NVMe），确保低延迟访问</li>
-                        <li><strong>高并发处理：</strong>优化数据库配置，支持大量并发查询</li>
-                        <li><strong>内存缓存：</strong>增大内存配置，将更多热数据缓存到内存</li>
-                        <li><strong>读写优化：</strong>优化索引、分区策略，提高读写性能</li>
-                    </ul>
-                    <p><strong>热数据特征：</strong></p>
-                    <ul>
-                        <li>频繁访问的数据（如最近7天的订单）</li>
-                        <li>用户活跃数据（如在线用户信息）</li>
-                        <li>实时业务数据（如当前直播间数据）</li>
-                        <li>最近创建或修改的数据</li>
-                    </ul>
-                    <p><strong>硬件配置建议：</strong></p>
-                    <ul>
-                        <li>CPU：高性能多核处理器</li>
-                        <li>内存：大容量内存（如64GB、128GB）</li>
-                        <li>存储：SSD或NVMe高速存储</li>
-                        <li>网络：万兆网卡，低延迟</li>
-                    </ul>
-                    <p><strong>优化策略：</strong></p>
-                    <ul>
-                        <li>合理的索引设计</li>
-                        <li>定期分析慢查询并优化</li>
-                        <li>合理设置缓存大小</li>
-                        <li>读写分离，从库分担读压力</li>
-                    </ul>
-                    <p><strong>优势：</strong>显著提升热数据访问速度，改善用户体验，降低冷数据服务器的压力。</p>
-                `;
-            } else if (type === 'cold-data-server') {
-                content = `
-                    <span class="close-btn" onclick="closeTooltip()">×</span>
-                    <h4>集合冷数据服务器</h4>
-                    <p><strong>定义：</strong>用于存储不常访问的"冷数据"的服务器，通常使用成本较低的存储方案。</p>
-                    <p><strong>主要功能：</strong></p>
-                    <ul>
-                        <li><strong>归档存储：</strong>存储历史数据、过期数据</li>
-                        <li><strong>数据备份：</strong>作为热数据的备份，防止数据丢失</li>
-                        <li><strong>合规存储：</strong>满足法规要求的数据保留期限</li>
-                        <li><strong>分析查询：</strong>支持数据分析、报表生成等操作</li>
-                    </ul>
-                    <p><strong>冷数据特征：</strong></p>
-                    <ul>
-                        <li>不常访问的历史数据（如一年前的订单）</li>
-                        <li>已归档的业务数据</li>
-                        <li>超过一定时间的数据（如一个月前）</li>
-                        <li>用于审计、分析的数据</li>
-                    </ul>
-                    <p><strong>存储策略：</strong></p>
-                    <ul>
-                        <li><strong>压缩存储：</strong>使用数据压缩技术，节省存储空间</li>
-                        <li><strong>分级存储：</strong>热数据、温数据、冷数据分层存储</li>
-                        <li><strong>定期归档：</strong>自动将超期数据迁移到冷存储</li>
-                        <li><strong>冗余备份：</strong>多副本存储，保证数据安全</li>
-                    </ul>
-                    <p><strong>硬件配置：</strong></p>
-                    <ul>
-                        <li>使用大容量HDD存储，成本较低</li>
-                        <li>配置适中的CPU和内存</li>
-                        <li>可以使用分布式存储系统</li>
-                        <li>支持数据压缩和去重</li>
-                    </ul>
-                    <p><strong>访问特点：</strong></p>
-                    <ul>
-                        <li>查询性能较低，但不影响业务正常运行</li>
-                        <li>主要用于后台分析、报表生成</li>
-                        <li>支持批量查询，不支持高并发实时查询</li>
-                    </ul>
-                    <p><strong>优势：</strong>降低存储成本，优化热数据服务器性能，满足数据合规要求。</p>
-                `;
-            } else if (type === 'cold-backup') {
-                content = `
-                    <span class="close-btn" onclick="closeTooltip()">×</span>
-                    <h4>冷数据备份</h4>
-                    <p><strong>作用：</strong>将一个月前的历史数据定期备份到冷数据库，释放热数据服务器的存储空间。</p>
-                    <p><strong>备份策略：</strong></p>
-                    <ul>
-                        <li><strong>时间策略：</strong>定期执行（如每月1号凌晨执行数据迁移）</li>
-                        <li><strong>数据筛选：</strong>将创建时间超过30天的数据标记为冷数据</li>
-                        <li><strong>数据迁移：</strong>将冷数据从热数据库迁移到冷数据库</li>
-                        <li><strong>数据清理：</strong>热数据库中删除已迁移的冷数据</li>
-                    </ul>
-                    <p><strong>备份流程：</strong></p>
-                    <ol>
-                        <li>扫描热数据库，识别超过30天的数据</li>
-                        <li>将数据导出到临时文件或直接迁移到冷数据库</li>
-                        <li>验证数据完整性</li>
-                        <li>从热数据库删除已备份的数据</li>
-                        <li>记录备份日志，便于追溯</li>
-                    </ol>
-                    <p><strong>数据保留策略：</strong></p>
-                    <ul>
-                        <li><strong>短期备份：</strong>保留最近3个月的冷数据</li>
-                        <li><strong>中期备份：</strong>保留最近1年的数据</li>
-                        <li><strong>长期归档：</strong>保留超过1年的数据，用于审计和分析</li>
-                        <li><strong>永久保存：</strong>关键业务数据永久保存</li>
-                    </ul>
-                    <p><strong>注意事项：</strong></p>
-                    <ul>
-                        <li>备份前必须验证数据完整性</li>
-                        <li>使用事务确保备份过程的原子性</li>
-                        <li>备份过程中避免影响业务正常运行</li>
-                        <li>定期测试备份恢复流程</li>
-                    </ul>
-                    <p><strong>优势：</strong>优化热数据存储，降低成本，满足数据合规要求，保留历史数据用于分析。</p>
-                `;
-            } else if (type === 'cold-db') {
-                content = `
-                    <span class="close-btn" onclick="closeTooltip()">×</span>
-                    <h4>可查询冷DB</h4>
-                    <p><strong>作用：</strong>冷数据库虽然性能较低，但仍然支持查询操作，用于历史数据查询和数据分析。</p>
-                    <p><strong>查询场景：</strong></p>
-                    <ul>
-                        <li><strong>历史订单查询：</strong>用户查询几个月前的订单记录</li>
-                        <li><strong>数据分析：</strong>业务分析、趋势分析、报表生成</li>
-                        <li><strong>审计查询：</strong>审计人员查询历史操作记录</li>
-                        <li><strong>合规检查：</strong>满足监管要求的数据查询</li>
-                    </ul>
-                    <p><strong>查询特点：</strong></p>
-                    <ul>
-                        <li><strong>响应时间较慢：</strong>通常在秒级到分钟级</li>
-                        <li><strong>支持批量查询：</strong>适合批量数据导出</li>
-                        <li><strong>不支持高并发：</strong>限制并发查询数量</li>
-                        <li><strong>只读优先：</strong>建议设计为只读数据库</li>
-                    </ul>
-                    <p><strong>查询优化：</strong></p>
-                    <ul>
-                        <li>建立合适的索引，加快查询速度</li>
-                        <li>使用分区表，按时间分区</li>
-                        <li>限制返回结果数量，使用分页</li>
-                        <li>使用物化视图，预计算常用查询</li>
-                    </ul>
-                    <p><strong>访问权限：</strong></p>
-                    <ul>
-                        <li>限制访问权限，只允许授权用户查询</li>
-                        <li>记录所有查询操作，用于审计</li>
-                        <li>敏感数据需要脱敏处理</li>
-                        <li>大数据导出需要审批</li>
-                    </ul>
-                    <p><strong>优势：</strong>保留历史数据查询能力，同时不影响热数据库性能，降低存储成本。</p>
-                `;
-            } else if (type === 'transaction') {
-                content = `
-                    <span class="close-btn" onclick="closeTooltip()">×</span>
-                    <h4>事务保护</h4>
-                    <p><strong>作用：</strong>确保数据库操作的ACID特性，保证数据一致性和完整性。</p>
-                    <p><strong>ACID特性：</strong></p>
-                    <ul>
-                        <li><strong>原子性（Atomicity）：</strong>事务中的操作要么全部成功，要么全部失败回滚</li>
-                        <li><strong>一致性（Consistency）：</strong>事务执行前后，数据库从一个一致性状态变换到另一个一致性状态</li>
-                        <li><strong>隔离性（Isolation）：</strong>并发事务之间相互隔离，不会互相干扰</li>
-                        <li><strong>持久性（Durability）：</strong>事务一旦提交，对数据库的修改是永久性的</li>
-                    </ul>
-                    <p><strong>事务应用场景：</strong></p>
-                    <ul>
-                        <li><strong>转账操作：</strong>一个账户扣款，另一个账户加款，必须同时成功或同时失败</li>
-                        <li><strong>订单创建：</strong>创建订单、扣减库存、生成物流单，必须保持一致性</li>
-                        <li><strong>Redis和数据库同步：</strong>更新Redis和数据库，必须同时成功</li>
-                        <li><strong>批量操作：</strong>批量插入、批量更新，必须全部成功或全部回滚</li>
-                    </ul>
-                    <p><strong>事务隔离级别：</strong></p>
-                    <ul>
-                        <li><strong>读未提交（READ UNCOMMITTED）：</strong>可能读到脏数据，不推荐使用</li>
-                        <li><strong>读已提交（READ COMMITTED）：</strong>只能读到已提交的数据，推荐使用</li>
-                        <li><strong>可重复读（REPEATABLE READ）：</strong>MySQL默认级别，防止幻读</li>
-                        <li><strong>串行化（SERIALIZABLE）：</strong>最高隔离级别，性能较差</li>
-                    </ul>
-                    <p><strong>分布式事务：</strong></p>
-                    <ul>
-                        <li><strong>2PC（两阶段提交）：</strong>准备阶段和提交阶段</li>
-                        <li><strong>TCC（Try-Confirm-Cancel）：</strong>尝试、确认、取消</li>
-                        <li><strong>本地消息表：</strong>通过消息队列实现最终一致性</li>
-                        <li><strong>Saga模式：</strong>长事务拆分为多个短事务</li>
-                    </ul>
-                    <p><strong>注意事项：</strong></p>
-                    <ul>
-                        <li>事务尽可能短小，避免长事务锁定资源</li>
-                        <li>合理设置隔离级别，平衡性能和一致性</li>
-                        <li>注意死锁问题，设置合理的锁超时时间</li>
-                        <li>分布式事务会影响性能，谨慎使用</li>
-                    </ul>
-                    <p><strong>优势：</strong>保证数据一致性，避免数据异常，确保业务逻辑正确执行。</p>
-                `;
-            } else if (type === 'redis-refresh') {
-                content = `
-                    <span class="close-btn" onclick="closeTooltip()">×</span>
-                    <h4>定时刷新Redis-DB</h4>
-                    <p><strong>作用：</strong>定期将Redis中的数据持久化到数据库，确保数据不丢失，同时保持Redis和数据库的数据一致性。</p>
-                    <p><strong>刷新策略：</strong></p>
-                    <ul>
-                        <li><strong>定时刷新：</strong>每隔一段时间（如每5分钟）将Redis数据写入数据库</li>
-                        <li><strong>增量刷新：</strong>只刷新有变化的数据，减少数据库压力</li>
-                        <li><strong>批量刷新：</strong>将多个Redis操作合并为一个数据库事务</li>
-                        <li><strong>异步刷新：</strong>使用后台线程异步执行，不阻塞主流程</li>
-                    </ul>
-                    <p><strong>刷新流程：</strong></p>
-                    <ol>
-                        <li>定时任务触发，扫描Redis中的所有key</li>
-                        <li>识别有变化的key（通过版本号或时间戳）</li>
-                        <li>将变化的数据批量写入数据库</li>
-                        <li>清除Redis中已过期或不需要的数据</li>
-                        <li>记录刷新日志，便于监控和排查问题</li>
-                    </ol>
-                    <p><strong>实现方式：</strong></p>
-                    <ul>
-                        <li><strong>定时任务：</strong>使用Quartz、Spring Scheduled等定时任务框架</li>
-                        <li><strong>消息队列：</strong>通过MQ触发数据刷新任务</li>
-                        <li><strong>变更日志：</strong>记录Redis操作日志，定期批量写入数据库</li>
-                        <li><strong>双写一致性：</strong>写操作同时更新Redis和数据库</li>
-                    </ul>
-                    <p><strong>注意事项：</strong></p>
-                    <ul>
-                        <li>避免在高峰期执行刷新任务</li>
-                        <li>合理设置刷新间隔，平衡实时性和性能</li>
-                        <li>做好异常处理，刷新失败时记录日志并重试</li>
-                        <li>监控Redis内存使用，防止内存溢出</li>
-                    </ul>
-                    <p><strong>优势：</strong>保证数据持久化，防止Redis故障导致数据丢失，保持数据一致性。</p>
-                `;
-            } else if (type === 'sharding') {
-                content = `
-                    <span class="close-btn" onclick="closeTooltip()">×</span>
-                    <h4>分库分表处理</h4>
-                    <p><strong>作用：</strong>将大表拆分成多个小表，分布到多个数据库服务器上，提高系统性能和可扩展性。</p>
-                    <p><strong>为什么要分库分表：</strong></p>
-                    <ul>
-                        <li><strong>性能瓶颈：</strong>单表数据量过大，查询变慢</li>
-                        <li><strong>存储瓶颈：</strong>单机存储空间有限</li>
-                        <li><strong>并发瓶颈：</strong>单机连接数有限，无法支持高并发</li>
-                        <li><strong>扩展需求：</strong>业务增长需要扩容</li>
-                    </ul>
-                    <p><strong>分库分表策略：</strong></p>
-                    <ul>
-                        <li><strong>水平分表（Sharding）：</strong>
-                            <ul>
-                                <li>按范围分片：如按时间、按ID范围</li>
-                                <li>按哈希分片：如user_id % 10，均匀分布</li>
-                                <li>地理位置分片：按用户所在地区分布</li>
-                            </ul>
-                        </li>
-                        <li><strong>垂直分库：</strong>
-                            <ul>
-                                <li>按业务模块分库：用户库、订单库、商品库</li>
-                                <li>按表关系分库：频繁关联的表放在同一库</li>
-                            </ul>
-                        </li>
-                    </ul>
-                    <p><strong>分片算法：</strong></p>
-                    <ul>
-                        <li><strong>取模分片：</strong>user_id % 分片数，简单均匀</li>
-                        <li><strong>范围分片：</strong>ID范围分片，便于查询</li>
-                        <li><strong>一致性哈希：</strong>节点扩容时数据迁移少</li>
-                        <li><strong>地理位置：</strong>按地域分片，就近访问</li>
-                    </ul>
-                    <p><strong>数据路由：</strong></p>
-                    <ul>
-                        <li>客户端路由：应用层根据分片规则选择数据库</li>
-                        <li>代理层路由：通过MyCat、ShardingSphere等中间件路由</li>
-                        <li>支持跨库查询、聚合、排序</li>
-                        <li>需要处理分布式事务</li>
-                    </ul>
-                    <p><strong>注意事项：</strong></p>
-                    <ul>
-                        <li>提前规划分片策略，避免后期扩容困难</li>
-                        <li>跨库查询性能较差，避免频繁跨库操作</li>
-                        <li>分布式ID生成，确保全局唯一</li>
-                        <li>做好数据迁移和备份方案</li>
-                    </ul>
-                    <p><strong>优势：</strong>提高查询性能、支持高并发、易于扩展、降低单机压力。</p>
                 `;
             } else if (type === 'connection-type') {
                 content = `
