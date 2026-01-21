@@ -110,8 +110,7 @@
                 F --> G[业务模块: 操作处理]
                 G --> GA{需要分布式锁}
                 GA -->|是| GB[Redis分布式锁<br/>SETNX/Redlock]
-                GA -->|否| GBB[获取锁成功]
-                GB --> GBB{抢锁成功}
+                GB --> GBB{抢锁成功?}
                 GBB -->|是| GBC[执行业务逻辑]
                 GBB -->|否| GBW[等待重试]
                 GBW --> GB
