@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>前端App与后端交互业务流程（详细版）</title>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <!-- 使用多个CDN源，确保在国内可以加载 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/mermaid/10.6.1/mermaid.min.js"
+            onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js'"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -1263,7 +1265,22 @@ check interval=3000 rise=2 fall=3 timeout=1000;
         </div>
     </div>
 
+    <!-- 如果图表显示为文字，请按F12打开控制台查看错误信息 -->
     <script>
+        // 检查Mermaid是否加载成功
+        if (typeof mermaid === 'undefined') {
+            console.error('Mermaid库加载失败！请检查网络连接或CDN是否可访问');
+            document.addEventListener('DOMContentLoaded', function() {
+                const mermaidDivs = document.querySelectorAll('.mermaid');
+                mermaidDivs.forEach(function(div) {
+                    div.style.border = '2px solid red';
+                    div.innerHTML = '<p style="color: red; padding: 20px;">⚠️ Mermaid库加载失败，无法渲染流程图。<br>请检查网络连接，或刷新页面重试。<br>按F12打开控制台查看详细错误信息。</p>';
+                });
+            });
+        } else {
+            console.log('✅ Mermaid库加载成功，版本:', mermaid.version);
+        }
+
         mermaid.initialize({ startOnLoad: true });
 
         window.addEventListener('load', function() {
